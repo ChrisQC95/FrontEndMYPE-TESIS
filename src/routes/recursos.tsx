@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Download, FileText, Landmark, Building, MapPin, Info, ArrowRight } from "lucide-react"
+import { FileText, Landmark, Building, MapPin, Info, ArrowRight } from "lucide-react"
 import { ExternalLink } from "lucide-react";
 
 export const Route = createFileRoute('/recursos')({

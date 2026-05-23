@@ -1,7 +1,7 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { Calculator, FileText, HelpCircle, ChevronRight, Info, CheckCircle2 } from "lucide-react"
-import { useNavigate } from "@tanstack/react-router"
+//import { Calculator, FileText, HelpCircle, ChevronRight, Info, CheckCircle2 } from "lucide-react"
+//import { useNavigate } from "@tanstack/react-router"
 
 
 
