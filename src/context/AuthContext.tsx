@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const resetPassword = async (email: string) => {
     try {
       const actionCodeSettings = {
-        url: 'http://localhost:5173/reset-password',
+        url: `${window.location.origin}/reset-password`,
         handleCodeInApp: false, // para password reset normal suele ser false 
       };
       await sendPasswordResetEmail(auth, email, actionCodeSettings);
