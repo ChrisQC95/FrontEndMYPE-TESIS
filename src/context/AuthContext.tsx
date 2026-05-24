@@ -33,7 +33,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (currentUser) {
         // AQUÍ SE MAPEA TU IDEA: Buscamos el ID numérico en la base de datos
         try {
-          const response = await fetch(`http://localhost:8080/api/usuarios/firebase/${currentUser.uid}`);
+          // Antes: const response = await fetch(`http://localhost:8080/api/usuarios/firebase/${currentUser.uid}`);
+
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/usuarios/firebase/${currentUser.uid}`);
           if (response.ok) {
             const data = await response.json();
             setDbUser(data); // Guardamos el usuario de BD globalmente

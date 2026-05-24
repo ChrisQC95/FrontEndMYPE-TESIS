@@ -1,8 +1,12 @@
 import type { SocioNegocio, Ubigeo } from './types';
 
 // ─── Base URLs ────────────────────────────────────────────────────────────────
-const SOCIOS_URL = 'http://localhost:8080/api/socios';
-const UBIGEOS_URL = 'http://localhost:8080/api/catalogos-sunat';
+// Antes:
+// const SOCIOS_URL = 'http://localhost:8080/api/socios';
+// const UBIGEOS_URL = 'http://localhost:8080/api/catalogos-sunat';
+
+const SOCIOS_URL = `${import.meta.env.VITE_API_URL}/api/socios`;
+const UBIGEOS_URL = `${import.meta.env.VITE_API_URL}/api/catalogos-sunat`;
 
 // ─── Tipos internos del backend ───────────────────────────────────────────────
 

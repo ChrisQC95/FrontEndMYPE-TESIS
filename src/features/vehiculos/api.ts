@@ -1,6 +1,8 @@
 import type { Vehiculo } from './types';
 
-const BASE_URL = 'http://localhost:8080/api/vehiculos';
+// Antes: const BASE_URL = 'http://localhost:8080/api/vehiculos';
+
+const BASE_URL = `${import.meta.env.VITE_API_URL}/api/vehiculos`;
 
 export const getVehiculos = async (usuarioId: number): Promise<Vehiculo[]> => {
   const res = await fetch(`${BASE_URL}/usuario/${usuarioId}`);

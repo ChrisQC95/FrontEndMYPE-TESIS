@@ -1,6 +1,8 @@
 import type { Conductor } from './types';
 
-const BASE_URL = 'http://localhost:8080/api/conductores';
+// Antes: const BASE_URL = 'http://localhost:8080/api/conductores';
+
+const BASE_URL = `${import.meta.env.VITE_API_URL}/api/conductores`;
 
 export const getConductores = async (usuarioId: number): Promise<Conductor[]> => {
   const res = await fetch(`${BASE_URL}/usuario/${usuarioId}`);

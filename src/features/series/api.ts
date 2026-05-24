@@ -1,8 +1,12 @@
 import type { Serie, TipoComprobante } from './types';
 
 // ─── Base URLs ────────────────────────────────────────────────────────────────
-const SERIES_URL = 'http://localhost:8080/api/series';
-const CATALOGOS_URL = 'http://localhost:8080/api/catalogos-sunat';
+// Antes: 
+// const SERIES_URL = 'http://localhost:8080/api/series';
+// const CATALOGOS_URL = 'http://localhost:8080/api/catalogos-sunat';
+
+const SERIES_URL = `${import.meta.env.VITE_API_URL}/api/series`;
+const CATALOGOS_URL = `${import.meta.env.VITE_API_URL}/api/catalogos-sunat`;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

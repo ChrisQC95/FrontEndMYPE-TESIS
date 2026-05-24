@@ -1,6 +1,8 @@
 import { Categoria } from './types';
 
-const API_URL = 'http://localhost:8080/api/categorias';
+// Antes: const API_URL = 'http://localhost:8080/api/categorias';
+
+const API_URL = `${import.meta.env.VITE_API_URL}/api/categorias`;
 // Placeholder temporal del usuario. Luego lo cambiaremos por el AuthContext
 //const USUARIO_ID = 1;
 
