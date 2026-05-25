@@ -1,5 +1,5 @@
 import type { SocioNegocio, Ubigeo } from './types';
-
+import { auth } from "@/lib/firebase";
 // ─── Base URLs ────────────────────────────────────────────────────────────────
 // Antes:
 // const SOCIOS_URL = 'http://localhost:8080/api/socios';
@@ -19,10 +19,26 @@ interface SocioNegocioRaw extends Omit<SocioNegocio, 'ubigeo'> {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+const getToken = async (): Promise<string> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new Error('No hay una sesión activa');
+  return await currentUser.getIdToken();
+};
 
-async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url);
+async function fetchJson<T>(url: string, options: RequestInit = {}): Promise<T> {
+  const token = await getToken();
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+    ...options.headers,
+  };
+
+  const res = await fetch(url, { ...options, headers });
   if (!res.ok) throw new Error(`Error HTTP ${res.status} — ${url}`);
+
+  // Si es un DELETE, retornamos algo vacío para no romper el contrato
+  if (options.method === 'DELETE') return undefined as T;
+
   return res.json() as Promise<T>;
 }
 
@@ -54,34 +70,30 @@ export const saveSocio = async (
   socio: Omit<SocioNegocio, 'id'> & { id?: number },
   usuarioId: number
 ): Promise<SocioNegocio> => {
-  // El backend recibe SocioNegocioDTO con ubigeo como string
   const payload = { ...socio, usuarioId };
-  const res = await fetch(SOCIOS_URL, {
+  const raw = await fetchJson<SocioNegocioRaw>(SOCIOS_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(`Error HTTP ${res.status} — guardar socio`);
-  const raw: SocioNegocioRaw = await res.json();
   return normalizeSocio(raw);
 };
 
 /** Elimina un socio por su ID */
 export const deleteSocio = async (id: number): Promise<void> => {
-  const res = await fetch(`${SOCIOS_URL}/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error(`Error HTTP ${res.status} — eliminar socio`);
+  await fetchJson<void>(`${SOCIOS_URL}/${id}`, { method: 'DELETE' });
 };
 
 // ─── Ubigeos: Cascada Departamento → Provincia → Distrito ────────────────────
 
 /** Retorna la lista de departamentos disponibles (strings únicos) */
 export const getDepartamentos = (): Promise<string[]> =>
-  fetchJson<string[]>(`${UBIGEOS_URL}/departamentos`);
+  fetchJson<string[]>(`${UBIGEOS_URL}/departamentos`, { method: 'GET' });
 
 /** Retorna las provincias de un departamento */
 export const getProvincias = (departamento: string): Promise<string[]> =>
   fetchJson<string[]>(
-    `${UBIGEOS_URL}/provincias?departamento=${encodeURIComponent(departamento)}`
+    `${UBIGEOS_URL}/provincias?departamento=${encodeURIComponent(departamento)}`,
+    { method: 'GET' }
   );
 
 /**
@@ -93,8 +105,9 @@ export const getDistritos = (
   provincia: string
 ): Promise<Ubigeo[]> =>
   fetchJson<Ubigeo[]>(
-    `${UBIGEOS_URL}/distritos?departamento=${encodeURIComponent(departamento)}&provincia=${encodeURIComponent(provincia)}`
+    `${UBIGEOS_URL}/distritos?departamento=${encodeURIComponent(departamento)}&provincia=${encodeURIComponent(provincia)}`,
+    { method: 'GET' }
   );
 
 export const getUbigeoByCode = (codigo: string): Promise<Ubigeo> =>
-  fetchJson<Ubigeo>(`${UBIGEOS_URL}/ubigeos/${codigo}`);
+  fetchJson<Ubigeo>(`${UBIGEOS_URL}/ubigeos/${codigo}`, { method: 'GET' });

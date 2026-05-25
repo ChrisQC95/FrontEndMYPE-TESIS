@@ -34,13 +34,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // AQUÍ SE MAPEA TU IDEA: Buscamos el ID numérico en la base de datos
         try {
           // Antes: const response = await fetch(`http://localhost:8080/api/usuarios/firebase/${currentUser.uid}`);
+          const token = await currentUser.getIdToken();
+          //const response = await fetch(`${import.meta.env.VITE_API_URL}/api/usuarios/firebase/${currentUser.uid}`);
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/usuarios/firebase/${currentUser.uid}`, {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            }
+          });
 
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/usuarios/firebase/${currentUser.uid}`);
           if (response.ok) {
             const data = await response.json();
             setDbUser(data); // Guardamos el usuario de BD globalmente
           } else {
             console.warn("Usuario autenticado en Firebase, pero no existe en PostgreSQL");
+            await firebaseSignOut(auth);
+            setUser(null);
+            setDbUser(null);
           }
         } catch (error) {
           console.error("Error al conectar con Spring Boot:", error);

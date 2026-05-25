@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info, ArrowLeft } from "lucide-react";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, User } from "firebase/auth";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, User, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -48,11 +48,13 @@ export function AuthModal({ isOpen, onClose, defaultTab = "login" }: AuthModalPr
 
   const syncUserWithBackend = async (firebaseUser: User) => {
     try {
+      const token = await firebaseUser.getIdToken();
       //const response = await fetch(`${import.meta.env.VITE_API_URL}/api/usuarios`, {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
           firebaseUid: firebaseUser.uid,
@@ -80,11 +82,21 @@ export function AuthModal({ isOpen, onClose, defaultTab = "login" }: AuthModalPr
     e.preventDefault();
     setLoading(true);
     try {
+      // 1. Firebase lo intenta
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const userData = await syncUserWithBackend(userCredential.user);
-      setDbUser(userData);
-      toast.success("Sesión iniciada correctamente");
-      onClose();
+
+      try {
+        // 2. El backend lo intenta
+        const userData = await syncUserWithBackend(userCredential.user);
+        setDbUser(userData);
+        toast.success("Sesión iniciada correctamente");
+        onClose();
+      } catch (backendError) {
+        // 3. ¡NUEVO! Si el backend falla, cancelamos la sesión en Firebase
+        await signOut(auth);
+        throw new Error("No se pudo conectar con el servidor. Intenta de nuevo.");
+      }
+
     } catch (error: any) {
       toast.error(error.message || "Error al iniciar sesión");
     } finally {
