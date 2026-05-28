@@ -12,7 +12,9 @@ import {
   Tags,
   Truck,
   IdCard,
-  FileDigit
+  FileDigit,
+  ShoppingCart,
+  Landmark
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -115,9 +117,9 @@ export const sidebarData: SidebarData = {
               icon: UserCog,
             },
             {
-              title: 'Series y Comprobantes',
-              url: '/dashboard/configuracion/series',
-              icon: Receipt,
+              title: 'Cuentas Bancarias',
+              url: '/dashboard/configuracion/cuentas-bancarias',
+              icon: Landmark,
             },
           ],
         },

@@ -48,6 +48,10 @@ import { Route as AuthenticatedDashboardSeriesRouteImport } from './routes/_auth
 import { Route as AuthenticatedDashboardProductosRouteImport } from './routes/_authenticated/dashboard/productos'
 import { Route as AuthenticatedDashboardConductoresRouteImport } from './routes/_authenticated/dashboard/conductores'
 import { Route as AuthenticatedDashboardCategoriasRouteImport } from './routes/_authenticated/dashboard/categorias'
+import { Route as AuthenticatedDashboardVentasNuevaRouteImport } from './routes/_authenticated/dashboard/ventas/nueva'
+import { Route as AuthenticatedDashboardVentasHistorialRouteImport } from './routes/_authenticated/dashboard/ventas/historial'
+import { Route as AuthenticatedDashboardConfiguracionPerfilRouteImport } from './routes/_authenticated/dashboard/configuracion/perfil'
+import { Route as AuthenticatedDashboardConfiguracionCuentasBancariasRouteImport } from './routes/_authenticated/dashboard/configuracion/cuentas-bancarias'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -257,6 +261,30 @@ const AuthenticatedDashboardCategoriasRoute =
     path: '/dashboard/categorias',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedDashboardVentasNuevaRoute =
+  AuthenticatedDashboardVentasNuevaRouteImport.update({
+    id: '/dashboard/ventas/nueva',
+    path: '/dashboard/ventas/nueva',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedDashboardVentasHistorialRoute =
+  AuthenticatedDashboardVentasHistorialRouteImport.update({
+    id: '/dashboard/ventas/historial',
+    path: '/dashboard/ventas/historial',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedDashboardConfiguracionPerfilRoute =
+  AuthenticatedDashboardConfiguracionPerfilRouteImport.update({
+    id: '/dashboard/configuracion/perfil',
+    path: '/dashboard/configuracion/perfil',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedDashboardConfiguracionCuentasBancariasRoute =
+  AuthenticatedDashboardConfiguracionCuentasBancariasRouteImport.update({
+    id: '/dashboard/configuracion/cuentas-bancarias',
+    path: '/dashboard/configuracion/cuentas-bancarias',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -295,6 +323,10 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
+  '/dashboard/configuracion/cuentas-bancarias': typeof AuthenticatedDashboardConfiguracionCuentasBancariasRoute
+  '/dashboard/configuracion/perfil': typeof AuthenticatedDashboardConfiguracionPerfilRoute
+  '/dashboard/ventas/historial': typeof AuthenticatedDashboardVentasHistorialRoute
+  '/dashboard/ventas/nueva': typeof AuthenticatedDashboardVentasNuevaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -332,6 +364,10 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
+  '/dashboard/configuracion/cuentas-bancarias': typeof AuthenticatedDashboardConfiguracionCuentasBancariasRoute
+  '/dashboard/configuracion/perfil': typeof AuthenticatedDashboardConfiguracionPerfilRoute
+  '/dashboard/ventas/historial': typeof AuthenticatedDashboardVentasHistorialRoute
+  '/dashboard/ventas/nueva': typeof AuthenticatedDashboardVentasNuevaRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -374,6 +410,10 @@ export interface FileRoutesById {
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
+  '/_authenticated/dashboard/configuracion/cuentas-bancarias': typeof AuthenticatedDashboardConfiguracionCuentasBancariasRoute
+  '/_authenticated/dashboard/configuracion/perfil': typeof AuthenticatedDashboardConfiguracionPerfilRoute
+  '/_authenticated/dashboard/ventas/historial': typeof AuthenticatedDashboardVentasHistorialRoute
+  '/_authenticated/dashboard/ventas/nueva': typeof AuthenticatedDashboardVentasNuevaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -414,6 +454,10 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/tasks/'
     | '/users/'
+    | '/dashboard/configuracion/cuentas-bancarias'
+    | '/dashboard/configuracion/perfil'
+    | '/dashboard/ventas/historial'
+    | '/dashboard/ventas/nueva'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -451,6 +495,10 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tasks'
     | '/users'
+    | '/dashboard/configuracion/cuentas-bancarias'
+    | '/dashboard/configuracion/perfil'
+    | '/dashboard/ventas/historial'
+    | '/dashboard/ventas/nueva'
   id:
     | '__root__'
     | '/'
@@ -492,6 +540,10 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/'
     | '/_authenticated/tasks/'
     | '/_authenticated/users/'
+    | '/_authenticated/dashboard/configuracion/cuentas-bancarias'
+    | '/_authenticated/dashboard/configuracion/perfil'
+    | '/_authenticated/dashboard/ventas/historial'
+    | '/_authenticated/dashboard/ventas/nueva'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -787,6 +839,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardCategoriasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/dashboard/ventas/nueva': {
+      id: '/_authenticated/dashboard/ventas/nueva'
+      path: '/dashboard/ventas/nueva'
+      fullPath: '/dashboard/ventas/nueva'
+      preLoaderRoute: typeof AuthenticatedDashboardVentasNuevaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard/ventas/historial': {
+      id: '/_authenticated/dashboard/ventas/historial'
+      path: '/dashboard/ventas/historial'
+      fullPath: '/dashboard/ventas/historial'
+      preLoaderRoute: typeof AuthenticatedDashboardVentasHistorialRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard/configuracion/perfil': {
+      id: '/_authenticated/dashboard/configuracion/perfil'
+      path: '/dashboard/configuracion/perfil'
+      fullPath: '/dashboard/configuracion/perfil'
+      preLoaderRoute: typeof AuthenticatedDashboardConfiguracionPerfilRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard/configuracion/cuentas-bancarias': {
+      id: '/_authenticated/dashboard/configuracion/cuentas-bancarias'
+      path: '/dashboard/configuracion/cuentas-bancarias'
+      fullPath: '/dashboard/configuracion/cuentas-bancarias'
+      preLoaderRoute: typeof AuthenticatedDashboardConfiguracionCuentasBancariasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -828,6 +908,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedHelpCenterIndexRoute: typeof AuthenticatedHelpCenterIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
+  AuthenticatedDashboardConfiguracionCuentasBancariasRoute: typeof AuthenticatedDashboardConfiguracionCuentasBancariasRoute
+  AuthenticatedDashboardConfiguracionPerfilRoute: typeof AuthenticatedDashboardConfiguracionPerfilRoute
+  AuthenticatedDashboardVentasHistorialRoute: typeof AuthenticatedDashboardVentasHistorialRoute
+  AuthenticatedDashboardVentasNuevaRoute: typeof AuthenticatedDashboardVentasNuevaRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -846,6 +930,14 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHelpCenterIndexRoute: AuthenticatedHelpCenterIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
+  AuthenticatedDashboardConfiguracionCuentasBancariasRoute:
+    AuthenticatedDashboardConfiguracionCuentasBancariasRoute,
+  AuthenticatedDashboardConfiguracionPerfilRoute:
+    AuthenticatedDashboardConfiguracionPerfilRoute,
+  AuthenticatedDashboardVentasHistorialRoute:
+    AuthenticatedDashboardVentasHistorialRoute,
+  AuthenticatedDashboardVentasNuevaRoute:
+    AuthenticatedDashboardVentasNuevaRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

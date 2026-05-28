@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, onAuthStateChanged, signOut as firebaseSignOut, sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import type { EmpresaPerfilDTO } from "@/features/configuracion/perfil/types";
 
 interface DbUser {
   id: number;
@@ -13,6 +14,8 @@ interface AuthContextType {
   user: User | null;
   dbUser: DbUser | null;
   setDbUser: (user: DbUser | null) => void;
+  empresaPerfil: EmpresaPerfilDTO | null;
+  setEmpresaPerfil: (perfil: EmpresaPerfilDTO | null) => void;
   loading: boolean;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -25,6 +28,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [dbUser, setDbUser] = useState<DbUser | null>(null);
+  const [empresaPerfil, setEmpresaPerfil] = useState<EmpresaPerfilDTO | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -46,6 +50,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (response.ok) {
             const data = await response.json();
             setDbUser(data); // Guardamos el usuario de BD globalmente
+
+            // Cargar el perfil de empresa
+            try {
+              const perfilRes = await fetch(`${import.meta.env.VITE_API_URL}/api/empresa-configuracion/usuario/${data.id}`, {
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`
+                }
+              });
+              if (perfilRes.ok) {
+                const perfilData = await perfilRes.json();
+                setEmpresaPerfil(perfilData);
+              }
+            } catch (err) {
+              console.error("Error al cargar el perfil de empresa:", err);
+            }
           } else {
             console.warn("Usuario autenticado en Firebase, pero no existe en PostgreSQL");
             await firebaseSignOut(auth);
@@ -57,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         setDbUser(null);
+        setEmpresaPerfil(null);
       }
       setLoading(false);
 
@@ -109,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, dbUser, setDbUser, loading, signOut, resetPassword, saveTempData, getTempData }}>
+    <AuthContext.Provider value={{ user, dbUser, setDbUser, empresaPerfil, setEmpresaPerfil, loading, signOut, resetPassword, saveTempData, getTempData }}>
       {children}
     </AuthContext.Provider>
   );
