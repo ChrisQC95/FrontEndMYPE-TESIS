@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, Save, Store, UploadCloud } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -17,41 +17,103 @@ import { useAuth } from '@/context/AuthContext';
 import { getEmpresaPerfil, saveEmpresaPerfil, uploadImageFile } from './api';
 import type { EmpresaPerfilDTO } from './types';
 
+// Estado inicial vacío para el formulario
+const EMPTY_FORM: EmpresaPerfilDTO = {
+  usuarioId: 0,
+  ruc: '',
+  razonSocial: '',
+  nombreComercial: '',
+  direccionFiscal: '',
+  telefono: '',
+  emailContacto: '',
+  logoUrl: '',
+};
+
+/**
+ * Mapea un DTO del backend al estado del formulario,
+ * normalizando nulls a string vacío para evitar inputs no controlados.
+ */
+function dtoToForm(data: EmpresaPerfilDTO): EmpresaPerfilDTO {
+  return {
+    usuarioId: data.usuarioId ?? 0,
+    ruc: data.ruc ?? '',
+    razonSocial: data.razonSocial ?? '',
+    nombreComercial: data.nombreComercial ?? '',
+    direccionFiscal: data.direccionFiscal ?? '',
+    telefono: data.telefono ?? '',
+    emailContacto: data.emailContacto ?? '',
+    // Este es el campo clave: si el backend devuelve null, lo dejamos
+    // como string vacío para que el JSX muestre el fallback <Store />
+    logoUrl: data.logoUrl ?? '',
+  };
+}
+
 export default function PerfilEmpresa() {
-  const { dbUser, setEmpresaPerfil } = useAuth();
-  
+  // empresaPerfil viene del AuthContext y ya se cargó al hacer login/F5.
+  // Es nuestra fuente de verdad para la carga inicial.
+  const { dbUser, empresaPerfil, setEmpresaPerfil } = useAuth();
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState<EmpresaPerfilDTO>({
-    usuarioId: 0,
-    ruc: '',
-    razonSocial: '',
-    nombreComercial: '',
-    direccionFiscal: '',
-    telefono: '',
-    emailContacto: '',
-    logoUrl: '',
-  });
+  const [form, setForm] = useState<EmpresaPerfilDTO>(EMPTY_FORM);
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // ESTRATEGIA DE CARGA INICIAL (Fix principal del bug de F5)
+  //
+  // Problema anterior: el useEffect dependía de dbUser?.id, pero al hacer F5
+  // el AuthContext tarda en cargar dbUser y empresaPerfil. Si el componente
+  // se montaba antes de que llegaran, setForm(EMPTY_FORM) quedaba como estado
+  // final y la imagen no aparecía.
+  //
+  // Solución: usamos dos efectos separados:
+  //   1. Si empresaPerfil ya existe en el context (cargado por AuthContext),
+  //      lo usamos INMEDIATAMENTE para poblar el formulario.
+  //   2. Si no existe todavía (aún se está cargando), esperamos a que dbUser
+  //      esté disponible y hacemos el fetch nosotros mismos.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const populateForm = useCallback((data: EmpresaPerfilDTO) => {
+    setForm(dtoToForm(data));
+    setLoading(false);
+  }, []);
+
+  // Efecto 1: Aprovechar empresaPerfil si el AuthContext ya lo tiene en memoria.
+  // Esto es lo que funciona tras el F5 cuando AuthContext termina de cargar
+  // ANTES de que el usuario navegue a esta página.
   useEffect(() => {
+    if (empresaPerfil) {
+      populateForm(empresaPerfil);
+    }
+  }, [empresaPerfil, populateForm]);
+
+  // Efecto 2: Si el empresaPerfil del context aún no llegó pero ya tenemos
+  // el dbUser, hacemos el fetch directamente desde este componente.
+  // Esto cubre el caso de navegación directa por URL (F5 en esta página).
+  useEffect(() => {
+    // Si el context ya tiene el perfil, el Efecto 1 ya lo manejó
+    if (empresaPerfil) return;
+    // Sin usuario aún, esperamos
     if (!dbUser?.id) return;
-    
-    // Cargar perfil desde el backend
+
+    setLoading(true);
     getEmpresaPerfil(dbUser.id)
       .then((data) => {
-        setForm(data);
+        populateForm(data);
+        // También actualizamos el context para que el Sidebar y otros
+        // componentes reflejen el logo sin hacer otro fetch
+        setEmpresaPerfil(data);
       })
       .catch((err) => {
-        console.error(err);
+        console.error('Error al cargar el perfil de empresa:', err);
         toast.error('Error al cargar el perfil de empresa');
-      })
-      .finally(() => {
         setLoading(false);
       });
-  }, [dbUser?.id]);
+  }, [dbUser?.id, empresaPerfil, populateForm, setEmpresaPerfil]);
+
+  // ─────────────────────────────────────────────────────────────────────────────
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -60,18 +122,25 @@ export default function PerfilEmpresa() {
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setUploadingLogo(true);
-      try {
-        const uploadedUrl = await uploadImageFile(file);
-        setForm((prev) => ({ ...prev, logoUrl: uploadedUrl }));
-        toast.success('Imagen subida correctamente');
-      } catch (err) {
-        console.error(err);
-        toast.error('Error al subir la imagen');
-      } finally {
-        setUploadingLogo(false);
-      }
+    if (!file) return;
+
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'general'); // → logos/general/uuid.ext en Supabase
+      const uploadedUrl = await uploadImageFile(formData);
+
+      // Actualizar solo el logoUrl en el estado del formulario
+      setForm((prev) => ({ ...prev, logoUrl: uploadedUrl }));
+      toast.success('Imagen subida correctamente');
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al subir la imagen. Intenta de nuevo.');
+    } finally {
+      setUploadingLogo(false);
+      // Limpiar el input para permitir re-seleccionar el mismo archivo
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -82,7 +151,10 @@ export default function PerfilEmpresa() {
     setSaving(true);
     try {
       const updated = await saveEmpresaPerfil({ ...form, usuarioId: dbUser.id });
-      setEmpresaPerfil(updated); // Actualiza el context/sidebar instantáneamente
+      // Actualizar el context para que el Sidebar refleje el cambio inmediatamente
+      setEmpresaPerfil(updated);
+      // Sincronizar el form con la respuesta del servidor (la fuente de verdad)
+      setForm(dtoToForm(updated));
       toast.success('Perfil actualizado correctamente');
     } catch (err) {
       console.error(err);
@@ -110,23 +182,33 @@ export default function PerfilEmpresa() {
             <CardDescription>Sube un logotipo para tu empresa</CardDescription>
           </CardHeader>
           <CardContent className='flex flex-col items-center space-y-4'>
+            {/* Contenedor de previsualización del logo */}
             <div className='flex aspect-square w-48 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed bg-muted'>
               {uploadingLogo ? (
-                <div className='flex flex-col items-center text-muted-foreground'>
-                  <Loader2 className='mb-2 h-8 w-8 animate-spin' />
+                // Estado: subiendo imagen al servidor
+                <div className='flex flex-col items-center gap-2 text-muted-foreground'>
+                  <Loader2 className='h-8 w-8 animate-spin' />
                   <span className='text-xs'>Subiendo...</span>
                 </div>
               ) : form.logoUrl ? (
+                // Estado: hay URL guardada → mostrar imagen de Supabase
+                // Al ser un bucket público, no requiere tokens ni encabezados
                 <img
                   src={form.logoUrl}
-                  alt='Logo preview'
+                  alt='Logo de la empresa'
                   className='h-full w-full object-cover'
+                  onError={(e) => {
+                    // Si la URL da error (ej. imagen borrada de Supabase),
+                    // mostrar el fallback ocultando el img roto
+                    e.currentTarget.style.display = 'none';
+                  }}
                 />
               ) : (
+                // Estado: sin logo configurado → ícono de fallback
                 <Store className='h-16 w-16 text-muted-foreground opacity-50' />
               )}
             </div>
-            
+
             <input
               type='file'
               accept='image/*'
@@ -169,7 +251,7 @@ export default function PerfilEmpresa() {
                   id='ruc'
                   name='ruc'
                   placeholder='Ej. 20123456789'
-                  value={form.ruc || ''}
+                  value={form.ruc}
                   onChange={handleChange}
                   required
                 />
@@ -180,7 +262,7 @@ export default function PerfilEmpresa() {
                   id='razonSocial'
                   name='razonSocial'
                   placeholder='Mi Empresa S.A.C.'
-                  value={form.razonSocial || ''}
+                  value={form.razonSocial}
                   onChange={handleChange}
                   required
                 />
@@ -191,7 +273,7 @@ export default function PerfilEmpresa() {
                   id='nombreComercial'
                   name='nombreComercial'
                   placeholder='Mi Tienda'
-                  value={form.nombreComercial || ''}
+                  value={form.nombreComercial}
                   onChange={handleChange}
                 />
               </div>
@@ -201,7 +283,7 @@ export default function PerfilEmpresa() {
                   id='direccionFiscal'
                   name='direccionFiscal'
                   placeholder='Av. Principal 123'
-                  value={form.direccionFiscal || ''}
+                  value={form.direccionFiscal}
                   onChange={handleChange}
                 />
               </div>
@@ -211,7 +293,7 @@ export default function PerfilEmpresa() {
                   id='telefono'
                   name='telefono'
                   placeholder='987654321'
-                  value={form.telefono || ''}
+                  value={form.telefono}
                   onChange={handleChange}
                 />
               </div>
@@ -222,16 +304,18 @@ export default function PerfilEmpresa() {
                   name='emailContacto'
                   type='email'
                   placeholder='contacto@miempresa.com'
-                  value={form.emailContacto || ''}
+                  value={form.emailContacto}
                   onChange={handleChange}
                 />
               </div>
               <div className='space-y-2 md:col-span-2'>
-                <Label htmlFor='emailAcceso' className='text-muted-foreground'>Email de Acceso (No editable)</Label>
+                <Label htmlFor='emailAcceso' className='text-muted-foreground'>
+                  Email de Acceso (No editable)
+                </Label>
                 <Input
                   id='emailAcceso'
                   type='email'
-                  value={dbUser?.email || ''}
+                  value={dbUser?.email ?? ''}
                   disabled
                   className='cursor-not-allowed bg-muted text-muted-foreground'
                 />

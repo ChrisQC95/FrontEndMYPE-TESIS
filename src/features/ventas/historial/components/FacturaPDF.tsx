@@ -1,8 +1,11 @@
-import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
 import type { Venta } from '../types'
+import type { EmpresaPerfilDTO } from '@/features/configuracion/perfil/types'
+import type { CuentaBancaria } from '@/features/configuracion/cuentas-bancarias/types'
 import { format } from 'date-fns'
+import { numeroALetras } from '@/lib/numeroALetras'
 
-// Mapeos estáticos (similares a index.tsx)
+// Mapeos estáticos
 const TIPOS_COMPROBANTE: Record<number, string> = {
   1: 'FACTURA ELECTRÓNICA',
   2: 'BOLETA DE VENTA ELECTRÓNICA',
@@ -11,6 +14,11 @@ const TIPOS_COMPROBANTE: Record<number, string> = {
 const MONEDAS: Record<number, string> = {
   1: 'PEN - Soles',
   2: 'USD - Dólares',
+}
+
+const MONEDAS_LETRAS: Record<number, 'SOLES' | 'DÓLARES'> = {
+  1: 'SOLES',
+  2: 'DÓLARES',
 }
 
 const TIPOS_PAGO: Record<number, string> = {
@@ -36,6 +44,12 @@ const styles = StyleSheet.create({
     width: '60%',
     paddingRight: 10,
   },
+  logoImage: {
+    width: 120,
+    height: 50,
+    marginBottom: 10,
+    objectFit: 'contain',
+  },
   logoPlaceholder: {
     width: 120,
     height: 40,
@@ -45,12 +59,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   logoText: {
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 8,
     color: '#94a3b8',
   },
   empresaNombre: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: 'Helvetica-Bold',
     color: '#0f172a',
     marginBottom: 4,
@@ -75,7 +88,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   tipoComprobanteText: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'Helvetica-Bold',
     textAlign: 'center',
     marginBottom: 4,
@@ -111,7 +124,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica-Bold',
     color: '#0f172a',
   },
-  // --- Guia Remision ---
+  // --- Guía de Remisión ---
   guiaBox: {
     flexDirection: 'row',
     paddingBottom: 10,
@@ -234,39 +247,102 @@ const styles = StyleSheet.create({
   },
 })
 
+// ─── Props ──────────────────────────────────────────────────────────────────
+
 interface FacturaPDFProps {
   venta: Venta
   clienteNombre: string
   clienteDocumento: string
+  clienteDireccion?: string        // Dirección del cliente (puede ser null/undefined)
+  empresa: EmpresaPerfilDTO        // Datos reales de la empresa desde AuthContext
+  cuentasBancarias?: CuentaBancaria[] // Máximo 3 se mostrarán (activas primero)
 }
 
-export const FacturaPDF = ({ venta, clienteNombre, clienteDocumento }: FacturaPDFProps) => {
+// ─── Helpers internos ────────────────────────────────────────────────────────
+
+/** Formatea una cuenta bancaria como texto de una línea */
+function formatearCuenta(c: CuentaBancaria): string {
+  const cci = c.cci ? ` (CCI: ${c.cci})` : ''
+  return `${c.banco} ${c.moneda}: ${c.numeroCuenta}${cci}`
+}
+
+/** Ordena cuentas: activas primero, luego toma máximo 3 */
+function seleccionarCuentas(cuentas: CuentaBancaria[]): CuentaBancaria[] {
+  return [...cuentas]
+    .sort((a, b) => (b.activo ? 1 : 0) - (a.activo ? 1 : 0))
+    .slice(0, 3)
+}
+
+// ─── Componente ──────────────────────────────────────────────────────────────
+
+export const FacturaPDF = ({
+  venta,
+  clienteNombre,
+  clienteDocumento,
+  clienteDireccion,
+  empresa,
+  cuentasBancarias = [],
+}: FacturaPDFProps) => {
   const tipoComprobanteStr = TIPOS_COMPROBANTE[venta.tipoComprobanteId] || 'COMPROBANTE ELECTRÓNICO'
   const monedaStr = MONEDAS[venta.monedaId] || 'Soles'
+  const monedaLetras = MONEDAS_LETRAS[venta.monedaId] || 'SOLES'
   const condicionPagoStr = TIPOS_PAGO[venta.tipoPagoId] || 'Contado'
 
   const fechaEmision = format(new Date(venta.fechaEmision), 'dd/MM/yyyy')
-  const fechaVencimiento = venta.fechaVencimiento ? format(new Date(venta.fechaVencimiento), 'dd/MM/yyyy') : '-'
+  const fechaVencimiento = venta.fechaVencimiento
+    ? format(new Date(venta.fechaVencimiento), 'dd/MM/yyyy')
+    : '-'
+
+  // Monto en letras (SUNAT)
+  const montoEnLetras = `SON: ${numeroALetras(venta.total, monedaLetras)}`
+
+  // Dirección del cliente: normalizar null/undefined/vacío a "-"
+  const direccionCliente =
+    clienteDireccion && clienteDireccion.trim() !== '' ? clienteDireccion : '-'
+
+  // Cuentas bancarias seleccionadas (activas primero, máximo 3)
+  const cuentasSeleccionadas = seleccionarCuentas(cuentasBancarias)
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        
-        {/* CABECERA */}
+
+        {/* ── CABECERA ────────────────────────────────────────────────── */}
         <View style={styles.headerContainer}>
           <View style={styles.headerLeft}>
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>LOGO EMPRESA</Text>
-            </View>
-            <Text style={styles.empresaNombre}>MI EMPRESA S.A.C.</Text>
-            <Text style={styles.empresaInfo}>Av. Principal 123, Distrito Comercial, Lima</Text>
-            <Text style={styles.empresaInfo}>Teléfono: (01) 555-1234</Text>
-            <Text style={styles.empresaInfo}>Email: facturacion@miempresa.com.pe</Text>
+            {/* Logo: imagen real si existe, placeholder si no */}
+            {empresa.logoUrl ? (
+              <Image src={empresa.logoUrl} style={styles.logoImage} />
+            ) : (
+              <View style={styles.logoPlaceholder}>
+                <Text style={styles.logoText}>LOGO EMPRESA</Text>
+              </View>
+            )}
+
+            {/* Razón Social */}
+            <Text style={styles.empresaNombre}>
+              {empresa.razonSocial || 'MI EMPRESA S.A.C.'}
+            </Text>
+
+            {/* Dirección Fiscal */}
+            {empresa.direccionFiscal ? (
+              <Text style={styles.empresaInfo}>{empresa.direccionFiscal}</Text>
+            ) : null}
+
+            {/* Teléfono */}
+            {empresa.telefono ? (
+              <Text style={styles.empresaInfo}>Teléfono: {empresa.telefono}</Text>
+            ) : null}
+
+            {/* Email */}
+            {empresa.emailContacto ? (
+              <Text style={styles.empresaInfo}>Email: {empresa.emailContacto}</Text>
+            ) : null}
           </View>
-          
+
           <View style={styles.headerRight}>
             <View style={styles.rucBox}>
-              <Text style={styles.rucText}>RUC: 20123456789</Text>
+              <Text style={styles.rucText}>RUC: {empresa.ruc || '—'}</Text>
               <Text style={styles.tipoComprobanteText}>{tipoComprobanteStr}</Text>
               <Text style={styles.serieCorrelativoText}>
                 {venta.serie}-{venta.correlativo.toString().padStart(6, '0')}
@@ -275,7 +351,7 @@ export const FacturaPDF = ({ venta, clienteNombre, clienteDocumento }: FacturaPD
           </View>
         </View>
 
-        {/* DATOS DEL CLIENTE */}
+        {/* ── DATOS DEL CLIENTE ───────────────────────────────────────── */}
         <View style={styles.clientBox}>
           <View style={styles.clientGrid}>
             <View style={styles.clientCol}>
@@ -288,7 +364,7 @@ export const FacturaPDF = ({ venta, clienteNombre, clienteDocumento }: FacturaPD
             </View>
             <View style={styles.clientCol}>
               <Text style={styles.label}>Dirección</Text>
-              <Text style={styles.value}>Lima, Perú (Dirección de prueba)</Text>
+              <Text style={styles.value}>{direccionCliente}</Text>
             </View>
             <View style={styles.clientCol}>
               <Text style={styles.label}>Moneda</Text>
@@ -305,7 +381,7 @@ export const FacturaPDF = ({ venta, clienteNombre, clienteDocumento }: FacturaPD
           </View>
         </View>
 
-        {/* GUÍA DE REMISIÓN (Opcional) */}
+        {/* ── GUÍA DE REMISIÓN (Opcional) ─────────────────────────────── */}
         {venta.guiaRemision && (
           <View style={styles.guiaBox}>
             <Text style={styles.guiaText}>
@@ -315,7 +391,7 @@ export const FacturaPDF = ({ venta, clienteNombre, clienteDocumento }: FacturaPD
           </View>
         )}
 
-        {/* TABLA DE DETALLES */}
+        {/* ── TABLA DE DETALLES ───────────────────────────────────────── */}
         <View style={styles.table}>
           <View style={styles.tableHeader}>
             <Text style={styles.colCant}>CANT.</Text>
@@ -324,7 +400,7 @@ export const FacturaPDF = ({ venta, clienteNombre, clienteDocumento }: FacturaPD
             <Text style={styles.colPU}>P. UNITARIO</Text>
             <Text style={styles.colTotal}>TOTAL</Text>
           </View>
-          
+
           {venta.detalles.map((d, i) => (
             <View key={d.id} style={[styles.tableRow, i % 2 !== 0 ? styles.tableRowZebra : {}]}>
               <Text style={styles.colCant}>{d.cantidad}</Text>
@@ -336,17 +412,34 @@ export const FacturaPDF = ({ venta, clienteNombre, clienteDocumento }: FacturaPD
           ))}
         </View>
 
-        {/* FOOTER Y TOTALES */}
+        {/* ── FOOTER Y TOTALES ────────────────────────────────────────── */}
         <View style={styles.footerContainer}>
           <View style={styles.footerLeft}>
-            <Text style={styles.montoLetras}>SON: {venta.total.toFixed(2)} CON 00/100 {monedaStr.toUpperCase()}</Text>
-            
-            <View style={styles.cuentasBox}>
-              <Text style={styles.cuentasTitle}>CUENTAS BANCARIAS</Text>
-              <Text style={styles.cuentaLine}>BCP Soles: 191-1234567-0-00 (CCI: 0021911234567000)</Text>
-              <Text style={styles.cuentaLine}>BBVA Soles: 0011-0123-456789 (CCI: 01101234567890)</Text>
-              <Text style={styles.cuentaLine}>Yape / Plin: 999 888 777</Text>
-            </View>
+            {/* Monto en letras (SUNAT) */}
+            <Text style={styles.montoLetras}>{montoEnLetras}</Text>
+
+            {/* Cuentas bancarias — solo si hay al menos una */}
+            {cuentasSeleccionadas.length > 0 && (
+              <View style={styles.cuentasBox}>
+                <Text style={styles.cuentasTitle}>CUENTAS BANCARIAS</Text>
+                {/* NO usamos display:none — renderizado condicional nativo */}
+                {cuentasSeleccionadas[0] && (
+                  <Text style={styles.cuentaLine}>
+                    {formatearCuenta(cuentasSeleccionadas[0])}
+                  </Text>
+                )}
+                {cuentasSeleccionadas[1] && (
+                  <Text style={styles.cuentaLine}>
+                    {formatearCuenta(cuentasSeleccionadas[1])}
+                  </Text>
+                )}
+                {cuentasSeleccionadas[2] && (
+                  <Text style={styles.cuentaLine}>
+                    {formatearCuenta(cuentasSeleccionadas[2])}
+                  </Text>
+                )}
+              </View>
+            )}
           </View>
 
           <View style={styles.footerRight}>
@@ -377,7 +470,7 @@ export const FacturaPDF = ({ venta, clienteNombre, clienteDocumento }: FacturaPD
           </View>
         </View>
 
-        {/* NOTA FINAL */}
+        {/* ── NOTA FINAL ──────────────────────────────────────────────── */}
         <Text style={styles.notaFinal}>
           sistema de prueba Konecta.erp, para el sistema completo contactar a +51 991 060 595
         </Text>

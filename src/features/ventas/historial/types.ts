@@ -49,3 +49,18 @@ export interface Venta {
   detalles: VentaDetalle[]
   guiaRemision?: GuiaRemision | null
 }
+
+/** Fila plana del reporte Excel — refleja ReporteVentaExcelDTO del backend */
+export interface ReporteVentaExcelRow {
+  fechaEmision: string        // ISO datetime string del backend
+  tipoComprobante: string
+  serie: string
+  correlativo: number
+  rucCliente: string
+  razonSocialCliente: string
+  productoNombre: string
+  cantidad: number
+  precioUnitario: number
+  subtotalItem: number
+  estadoSunat: string | null
+}

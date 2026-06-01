@@ -36,26 +36,27 @@ export const saveEmpresaPerfil = async (dto: EmpresaPerfilDTO): Promise<EmpresaP
   });
 };
 
-/** Sube un archivo de imagen al servidor y retorna su URL pública */
-export const uploadImageFile = async (file: File): Promise<string> => {
+/** Sube un archivo de imagen al servidor y retorna su URL pública de Supabase.
+ *  @param formData - FormData ya construido con 'file' y 'folder' como claves
+ */
+export const uploadImageFile = async (formData: FormData): Promise<string> => {
   const token = await getToken();
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('folder', 'logos'); // Subimos a la carpeta logos
 
   const res = await fetch(`${import.meta.env.VITE_API_URL}/api/storage/upload`, {
     method: 'POST',
     headers: {
-      // Importante: No establecer Content-Type, el navegador lo añade automáticamente con el boundary para FormData
+      // NO establecer Content-Type aquí; el navegador lo añade automáticamente
+      // con el boundary correcto para multipart/form-data
       'Authorization': `Bearer ${token}`,
     },
     body: formData,
   });
 
   if (!res.ok) {
-    throw new Error(`Error HTTP ${res.status} al subir imagen`);
+    const errorText = await res.text();
+    throw new Error(`Error HTTP ${res.status} al subir imagen: ${errorText}`);
   }
 
   const data = await res.json();
-  return data.url;
+  return data.url as string;
 };
