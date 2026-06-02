@@ -18,7 +18,17 @@ async function fetchJson<T>(url: string, options: RequestInit = {}): Promise<T> 
   };
 
   const res = await fetch(url, { ...options, headers });
-  if (!res.ok) throw new Error(`Error HTTP ${res.status} — ${url}`);
+  if (!res.ok) {
+    try {
+      const errData = await res.json();
+      throw new Error(errData.error || `Error HTTP ${res.status} — ${url}`);
+    } catch (e) {
+      if (e instanceof Error && e.message !== 'Unexpected end of JSON input' && !e.message.startsWith('Unexpected token')) {
+        throw e;
+      }
+      throw new Error(`Error HTTP ${res.status} — ${url}`);
+    }
+  }
 
   return res.json() as Promise<T>;
 }
