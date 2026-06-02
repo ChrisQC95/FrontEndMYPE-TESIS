@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -7,35 +6,41 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ConfigDrawer } from '@/components/config-drawer'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
-import { TopNav } from '@/components/layout/top-nav'
 import { ProfileDropdown } from '@/components/profile-dropdown'
-import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { Analytics } from './components/analytics'
 import { Overview } from './components/overview'
-import { RecentSales, VentaReciente } from './components/recent-sales'
+import type { GraficoVentaData } from './components/overview'
+import { RecentSales } from './components/recent-sales'
+import type { VentaReciente } from './components/recent-sales'
 import { useAuth } from '@/context/AuthContext'
 import { auth } from '@/lib/firebase'
-import { Loader2, DollarSign, Receipt, Package, Truck } from 'lucide-react'
+import { Loader2, TrendingUp, FileText, ScrollText, NotebookPen, Package, Users } from 'lucide-react'
 import { toast } from 'sonner'
 
+// ── Tipos ─────────────────────────────────────────────────────────────────────
 interface DashboardData {
-  ingresosMesActual: number
+  totalVentasMes: number
   crecimientoIngresos: number
   cantidadVentasMes: number
+  montoFacturas: number
+  cantidadFacturas: number
+  montoBoletas: number
+  cantidadBoletas: number
+  montoNotasVenta: number
+  cantidadNotasVenta: number
   totalProductos: number
-  totalCategorias: number
   totalSocios: number
-  totalVehiculos: number
-  totalConductores: number
   ventasRecientes: VentaReciente[]
-  graficoVentas: { name: string; total: number }[]
+  graficoVentas: GraficoVentaData[]
 }
 
+// ── Helper de formato Soles ────────────────────────────────────────────────────
+const pen = (value: number) =>
+  new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(value)
+
+// ── Componente principal ───────────────────────────────────────────────────────
 export function Dashboard() {
   const { dbUser } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
@@ -43,194 +48,180 @@ export function Dashboard() {
 
   useEffect(() => {
     if (!dbUser?.id) return
-
     const fetchDashboardData = async () => {
       try {
         const token = await auth.currentUser?.getIdToken()
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/dashboard/resumen?usuarioId=${dbUser.id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/dashboard/resumen?usuarioId=${dbUser.id}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
         if (!res.ok) throw new Error('Error fetching dashboard')
-        const json = await res.json()
-        setData(json)
-      } catch (error) {
+        setData(await res.json())
+      } catch {
         toast.error('No se pudieron cargar las métricas del dashboard')
       } finally {
         setLoading(false)
       }
     }
-
     fetchDashboardData()
   }, [dbUser?.id])
 
   return (
     <>
+      {/* ── Header ─────────────────────────────────────────────────────── */}
       <Header>
-        <TopNav links={topNav} />
-        <div className='ms-auto flex items-center space-x-4'>
-          <Search />
+        <div className="ms-auto flex items-center space-x-4">
           <ThemeSwitch />
-          <ConfigDrawer />
           <ProfileDropdown />
         </div>
       </Header>
 
       <Main>
-        <div className='mb-2 flex items-center justify-between space-y-2'>
-          <h1 className='text-2xl font-bold tracking-tight'>Dashboard MYPE</h1>
-          <div className='flex items-center space-x-2'>
-            <Button>Descargar Reporte</Button>
-          </div>
+        {/* ── Encabezado institucional ─────────────────────────────────── */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            Facturador de entrenamiento
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground leading-relaxed">
+            Sistema de facturación de entrenamiento para un futuro sistema real post formalización.
+            Evalúa el crecimiento de tu emprendimiento gestionando Notas de Venta y prepárate para
+            operar con múltiples clientes.
+          </p>
         </div>
-        <Tabs
-          orientation='vertical'
-          defaultValue='overview'
-          className='space-y-4'
-        >
-          <div className='w-full overflow-x-auto pb-2'>
-            <TabsList>
-              <TabsTrigger value='overview'>Overview</TabsTrigger>
-              <TabsTrigger value='analytics'>Analytics</TabsTrigger>
-              <TabsTrigger value='reports' disabled>
-                Reports
-              </TabsTrigger>
-              <TabsTrigger value='notifications' disabled>
-                Notifications
-              </TabsTrigger>
-            </TabsList>
+
+        {/* ── Cuerpo del dashboard ─────────────────────────────────────── */}
+        {loading || !data ? (
+          <div className="flex h-96 w-full items-center justify-center text-slate-400">
+            <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+            Cargando métricas...
           </div>
-          <TabsContent value='overview' className='space-y-4'>
-            {loading || !data ? (
-              <div className='flex h-96 w-full items-center justify-center text-slate-400'>
-                <Loader2 className='mr-2 h-8 w-8 animate-spin' />
-                Cargando métricas...
-              </div>
-            ) : (
-              <>
-                <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
-                  <Card>
-                    <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                      <CardTitle className='text-sm font-medium'>
-                        Ingresos del Mes
-                      </CardTitle>
-                      <DollarSign className='h-4 w-4 text-emerald-600' />
-                    </CardHeader>
-                    <CardContent>
-                      <div className='text-2xl font-bold'>
-                        ${data.ingresosMesActual.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </div>
-                      <p className='text-xs text-muted-foreground'>
-                        {data.crecimientoIngresos >= 0 ? '+' : ''}
-                        {data.crecimientoIngresos.toFixed(1)}% vs mes anterior
-                      </p>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                      <CardTitle className='text-sm font-medium'>
-                        Ventas del Mes
-                      </CardTitle>
-                      <Receipt className='h-4 w-4 text-blue-600' />
-                    </CardHeader>
-                    <CardContent>
-                      <div className='text-2xl font-bold'>+{data.cantidadVentasMes}</div>
-                      <p className='text-xs text-muted-foreground'>
-                        Comprobantes emitidos este mes
-                      </p>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                      <CardTitle className='text-sm font-medium'>Catálogo Activo</CardTitle>
-                      <Package className='h-4 w-4 text-orange-600' />
-                    </CardHeader>
-                    <CardContent>
-                      <div className='text-2xl font-bold'>{data.totalProductos + data.totalCategorias}</div>
-                      <p className='text-xs text-muted-foreground'>
-                        {data.totalProductos} Productos y {data.totalCategorias} Categorías
-                      </p>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                      <CardTitle className='text-sm font-medium'>
-                        Operaciones y Logística
-                      </CardTitle>
-                      <Truck className='h-4 w-4 text-violet-600' />
-                    </CardHeader>
-                    <CardContent>
-                      <div className='text-2xl font-bold'>{data.totalSocios + data.totalVehiculos + data.totalConductores}</div>
-                      <p className='text-xs text-muted-foreground'>
-                        {data.totalSocios} Socios, {data.totalVehiculos} Vehículos, {data.totalConductores} Conductores
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
-                
-                <div className='grid grid-cols-1 gap-4 lg:grid-cols-7'>
-                  <Card className='col-span-1 lg:col-span-4'>
-                    <CardHeader>
-                      <CardTitle>Ingresos Últimos 6 Meses</CardTitle>
-                    </CardHeader>
-                    <CardContent className='ps-2'>
-                      <Overview data={data.graficoVentas} />
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className='col-span-1 lg:col-span-3'>
-                    <CardHeader>
-                      <CardTitle>Ventas Recientes</CardTitle>
-                      <CardDescription>
-                        {data.cantidadVentasMes > 0 
-                          ? `Has realizado ${data.cantidadVentasMes} ventas este mes.` 
-                          : 'Aún no has realizado ventas este mes.'}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <RecentSales ventas={data.ventasRecientes} />
-                    </CardContent>
-                  </Card>
-                </div>
-              </>
-            )}
-          </TabsContent>
-          <TabsContent value='analytics' className='space-y-4'>
-            <Analytics />
-          </TabsContent>
-        </Tabs>
+        ) : (
+          <div className="space-y-6">
+
+            {/* ── Grid 6 KPI Cards ─────────────────────────────────────── */}
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+
+              {/* Card 1 — Total Ventas */}
+              <Card className="border-l-4 border-l-slate-700 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total de Ventas</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-slate-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{pen(data.totalVentasMes)}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {data.crecimientoIngresos >= 0 ? '+' : ''}
+                    {data.crecimientoIngresos.toFixed(1)}% vs mes anterior ·{' '}
+                    {data.cantidadVentasMes} comprobantes
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Card 2 — Facturación Oficial (Facturas) */}
+              <Card className="border-l-4 border-l-blue-500 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Facturación Oficial</CardTitle>
+                  <FileText className="h-4 w-4 text-blue-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600">{pen(data.montoFacturas)}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {data.cantidadFacturas} factura{data.cantidadFacturas !== 1 ? 's' : ''} emitida{data.cantidadFacturas !== 1 ? 's' : ''} este mes
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Card 3 — Boletas Emitidas */}
+              <Card className="border-l-4 border-l-emerald-500 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Boletas Emitidas</CardTitle>
+                  <ScrollText className="h-4 w-4 text-emerald-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-emerald-600">{pen(data.montoBoletas)}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {data.cantidadBoletas} boleta{data.cantidadBoletas !== 1 ? 's' : ''} de venta este mes
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Card 4 — Notas de Venta */}
+              <Card className="border-l-4 border-l-amber-500 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Notas de Venta</CardTitle>
+                  <NotebookPen className="h-4 w-4 text-amber-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-amber-600">{pen(data.montoNotasVenta)}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {data.cantidadNotasVenta} nota{data.cantidadNotasVenta !== 1 ? 's' : ''} de venta (docs. internos)
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Card 5 — Catálogo Activo */}
+              <Card className="border-l-4 border-l-orange-500 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Catálogo Activo</CardTitle>
+                  <Package className="h-4 w-4 text-orange-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-orange-600">{data.totalProductos}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Producto{data.totalProductos !== 1 ? 's' : ''} registrado{data.totalProductos !== 1 ? 's' : ''}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Card 6 — Socios de Negocio */}
+              <Card className="border-l-4 border-l-violet-500 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Socios de Negocio</CardTitle>
+                  <Users className="h-4 w-4 text-violet-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-violet-600">{data.totalSocios}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Cliente{data.totalSocios !== 1 ? 's' : ''} y/o proveedor{data.totalSocios !== 1 ? 'es' : ''} activo{data.totalSocios !== 1 ? 's' : ''}
+                  </p>
+                </CardContent>
+              </Card>
+
+            </div>
+
+            {/* ── Gráfico + Ventas recientes ────────────────────────────── */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
+
+              <Card className="col-span-1 lg:col-span-4 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Distribución de Ingresos — Últimos 6 Meses</CardTitle>
+                  <CardDescription>
+                    Desglose por tipo de comprobante · Soles (S/)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="ps-2">
+                  <Overview data={data.graficoVentas} />
+                </CardContent>
+              </Card>
+
+              <Card className="col-span-1 lg:col-span-3 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Ventas Recientes</CardTitle>
+                  <CardDescription>
+                    {data.cantidadVentasMes > 0
+                      ? `${data.cantidadVentasMes} comprobante${data.cantidadVentasMes !== 1 ? 's' : ''} emitido${data.cantidadVentasMes !== 1 ? 's' : ''} este mes.`
+                      : 'Aún no has realizado ventas este mes.'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <RecentSales ventas={data.ventasRecientes} />
+                </CardContent>
+              </Card>
+
+            </div>
+          </div>
+        )}
       </Main>
     </>
   )
 }
-
-const topNav = [
-  {
-    title: 'Overview',
-    href: 'dashboard/overview',
-    isActive: true,
-    disabled: false,
-  },
-  {
-    title: 'Customers',
-    href: 'dashboard/customers',
-    isActive: false,
-    disabled: true,
-  },
-  {
-    title: 'Products',
-    href: 'dashboard/products',
-    isActive: false,
-    disabled: true,
-  },
-  {
-    title: 'Settings',
-    href: 'dashboard/settings',
-    isActive: false,
-    disabled: true,
-  },
-]

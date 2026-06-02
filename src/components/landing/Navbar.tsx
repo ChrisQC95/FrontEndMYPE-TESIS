@@ -8,7 +8,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Briefcase, Menu, X, ChevronDown, User } from "lucide-react"
+import { Menu, X, ChevronDown, User } from "lucide-react"
+import { Logo } from "@/components/logo"
 import { useAuth } from "@/context/AuthContext"
 import { AuthModal } from "@/components/auth/AuthModal"
 import { useNavigate } from "@tanstack/react-router"
@@ -38,14 +39,9 @@ export function Navbar() {
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-royal-blue text-white">
-            <Briefcase className="h-5 w-5" />
-          </div>
-          <span className="text-lg font-semibold text-royal-blue">
-            Formaliza tu Negocio
-          </span>
-        </div>
+        <a href="/" aria-label="FormaEasy — Inicio">
+          <Logo size="md" />
+        </a>
 
         {/* Desktop Navigation */}
         <div className="hidden items-center gap-8 md:flex">
@@ -64,14 +60,14 @@ export function Navbar() {
         <div className="hidden items-center gap-4 md:flex">
           {!user ? (
             <>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 className="text-foreground font-semibold hover:bg-accent"
                 onClick={() => setAuthModalOpen(true)}
               >
                 Ingresar
               </Button>
-              <Button 
+              <Button
                 className="bg-vibrant-orange hover:bg-vibrant-orange/90 text-white font-semibold shadow-md"
                 onClick={handlePanelClick}
               >
@@ -80,7 +76,7 @@ export function Navbar() {
             </>
           ) : (
             <>
-              <Button 
+              <Button
                 className="bg-vibrant-orange hover:bg-vibrant-orange/90 text-white font-semibold shadow-md"
                 onClick={handlePanelClick}
               >
@@ -97,8 +93,8 @@ export function Navbar() {
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuItem className="cursor-pointer">Mi Perfil</DropdownMenuItem>
                   <DropdownMenuItem className="cursor-pointer">Configuración</DropdownMenuItem>
-                  <DropdownMenuItem 
-                    className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50" 
+                  <DropdownMenuItem
+                    className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
                     onClick={signOut}
                   >
                     Cerrar Sesión
@@ -141,7 +137,7 @@ export function Navbar() {
             <div className="mt-4 space-y-2 border-t border-border pt-4">
               {!user ? (
                 <>
-                  <Button 
+                  <Button
                     className="w-full bg-vibrant-orange hover:bg-vibrant-orange/90 text-white font-semibold"
                     onClick={() => {
                       setMobileMenuOpen(false);
@@ -150,8 +146,8 @@ export function Navbar() {
                   >
                     ¡Empieza Ahora!
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full gap-2 bg-transparent font-semibold border-input"
                     onClick={() => {
                       setAuthModalOpen(true);
@@ -163,7 +159,7 @@ export function Navbar() {
                 </>
               ) : (
                 <>
-                  <Button 
+                  <Button
                     className="w-full bg-vibrant-orange hover:bg-vibrant-orange/90 text-white font-semibold mb-2"
                     onClick={() => {
                       setMobileMenuOpen(false);
@@ -176,8 +172,8 @@ export function Navbar() {
                     <User className="h-4 w-4" />
                     {user.displayName || user.email?.split('@')[0] || 'Usuario'}
                   </div>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full gap-2 bg-transparent text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50 hover:border-red-300"
                     onClick={() => {
                       setMobileMenuOpen(false);

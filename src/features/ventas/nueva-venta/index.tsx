@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import {
   getProductos,
@@ -113,10 +113,19 @@ export default function NuevaVenta() {
     loadData()
   }, [usuarioId])
 
+  // ─── VARIABLE AUXILIAR ───────────────────────────────────────────────
+  const esNotaDeVenta = tipoComprobante === '3'
+
   // ─── LÓGICA DE LA FILA DE ACCIÓN ──────────────────────────────────────
   const handleProductSelect = (prodId: number) => {
     const prod = productos.find(p => p.id === prodId)
     if (prod) {
+      // Regla de negocio: Nota de Venta no admite productos gravados con IGV
+      if (esNotaDeVenta && prod.afectoIgv) {
+        toast.error('Las Notas de Venta solo admiten productos sin afectación al IGV')
+        setOpenProductSearch(false)
+        return
+      }
       setSelectedProductId(prodId)
       setInputPrecio(prod.precioVenta.toFixed(2))
       setInputCantidad('1')
@@ -242,7 +251,10 @@ export default function NuevaVenta() {
     ? clienteSeleccionado?.tipoDocumento === '06' && clienteSeleccionado?.numeroDocumento.length === 11
     : true
 
-  const canSubmit = detalles.length > 0 && clienteId && serieId && isFacturaValid &&
+  // Nota de Venta: el cliente es opcional (puede ir sin cliente seleccionado)
+  const clienteRequerido = esNotaDeVenta ? true : !!clienteId
+
+  const canSubmit = detalles.length > 0 && clienteRequerido && serieId && isFacturaValid &&
     (!generarGuia || (vehiculoId && conductorId && pesoBruto && dirPartida && ubiPartida && dirLlegada && ubiLlegada))
 
   const handleGuardar = async () => {
@@ -251,8 +263,9 @@ export default function NuevaVenta() {
     try {
       const serieObj = series.find(s => s.id.toString() === serieId)
 
+      // La Guía de Remisión nunca aplica para Nota de Venta
       let guiaRemision: GuiaRemisionRequestDTO | null = null
-      if (generarGuia) {
+      if (generarGuia && !esNotaDeVenta) {
         guiaRemision = {
           vehiculoId: Number(vehiculoId),
           conductorId: Number(conductorId),
@@ -267,7 +280,8 @@ export default function NuevaVenta() {
 
       const payload: VentaRequestDTO = {
         usuarioId,
-        socioNegocioId: Number(clienteId),
+        // Nota de Venta: si no hay cliente seleccionado, envía 0 (sin cliente)
+        socioNegocioId: clienteId ? Number(clienteId) : 0,
         tipoComprobanteId: Number(tipoComprobante),
         tipoOperacionId: 1, // Venta Interna
         monedaId: Number(moneda),
@@ -286,7 +300,9 @@ export default function NuevaVenta() {
 
       await registrarVenta(payload)
       toast.success('Venta registrada exitosamente', {
-        description: '⚠️ AVISO: Esta venta es solo de prueba y no tiene validez legal.',
+        description: esNotaDeVenta
+          ? '📋 Nota de Venta registrada. Documento interno no oficial.'
+          : '⚠️ AVISO: Esta venta es solo de prueba y no tiene validez legal.',
         duration: 6000,
       })
 
@@ -311,7 +327,7 @@ export default function NuevaVenta() {
       {/* ENCABEZADO */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Nueva Venta</h1>
-        <p className="text-slate-500 mt-1 text-sm">Registra un comprobante electrónico: factura o boleta.</p>
+        <p className="text-slate-500 mt-1 text-sm">Registra un comprobante: factura, boleta o nota de venta.</p>
       </div>
 
       {/* LAYOUT ASIMÉTRICO 12 COLUMNAS */}
@@ -348,6 +364,9 @@ export default function NuevaVenta() {
                   {tipoComprobante === '1' && clienteSeleccionado && clienteSeleccionado.numeroDocumento.length !== 11 && (
                     <p className="text-[10px] text-destructive">La factura exige RUC (11 dígitos).</p>
                   )}
+                  {esNotaDeVenta && (
+                    <p className="text-[10px] text-slate-400">Cliente opcional para Nota de Venta.</p>
+                  )}
                 </div>
 
                 {/* Fecha Emisión */}
@@ -365,13 +384,27 @@ export default function NuevaVenta() {
                 {/* Tipo Comprobante */}
                 <div className="space-y-1.5 md:col-span-2">
                   <Label className="text-xs font-semibold text-slate-600">Comprobante</Label>
-                  <Select value={tipoComprobante} onValueChange={(val) => { setTipoComprobante(val); setSerieId('') }}>
+                  <Select
+                    value={tipoComprobante}
+                    onValueChange={(val) => {
+                      setTipoComprobante(val)
+                      setSerieId('')
+                      // Nota de Venta no tiene guía de remisión
+                      if (val === '3') setGenerarGuia(false)
+                    }}
+                  >
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="1">01 - FACTURA ELECTRONICA</SelectItem>
                       <SelectItem value="2">03 - BOLETA DE VENTA ELECTRONICA</SelectItem>
+                      <SelectItem value="3">NV - NOTA DE VENTA</SelectItem>
                     </SelectContent>
                   </Select>
+                  {esNotaDeVenta && (
+                    <p className="text-[10px] text-amber-600 font-medium mt-1">
+                      ⚠️ Documento interno. Solo productos sin IGV. Cliente opcional.
+                    </p>
+                  )}
                 </div>
 
                 {/* Serie */}
@@ -555,65 +588,67 @@ export default function NuevaVenta() {
             </CardContent>
           </Card>
 
-          {/* CARD 3: GUÍA DE REMISIÓN */}
-          <Card className="shadow-sm border-slate-200">
-            <CardHeader className="bg-slate-50 border-b pb-3 pt-4 px-5 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-sm font-semibold text-slate-700 uppercase tracking-wider">
-                Guía de Remisión Remitente
-              </CardTitle>
-              <div className="flex items-center space-x-2">
-                <Label htmlFor="guia-switch" className="text-xs font-medium text-slate-600 cursor-pointer">Generar Guía</Label>
-                <Switch id="guia-switch" checked={generarGuia} onCheckedChange={setGenerarGuia} />
-              </div>
-            </CardHeader>
-            {generarGuia && (
-              <CardContent className="p-5">
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-600">Vehículo</Label>
-                    <Select value={vehiculoId} onValueChange={setVehiculoId}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="Seleccione Placa" /></SelectTrigger>
-                      <SelectContent>{vehiculos.map(v => <SelectItem key={v.id} value={v.id.toString()}>{v.placa} ({v.marca})</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-600">Conductor</Label>
-                    <Select value={conductorId} onValueChange={setConductorId}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder="Seleccione Conductor" /></SelectTrigger>
-                      <SelectContent>{conductores.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.nombreCompleto}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-600">Peso Bruto (KGM)</Label>
-                    <Input type="number" step="0.01" className="h-9" value={pesoBruto} onChange={e => setPesoBruto(e.target.value)} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-600">Motivo Traslado</Label>
-                    <Select value={motivoTraslado} onValueChange={setMotivoTraslado}>
-                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="01">01 - Venta</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5 md:col-span-2 lg:col-span-2">
-                    <Label className="text-xs font-semibold text-slate-600">Punto de Partida (Ubigeo — Dirección)</Label>
-                    <div className="flex gap-2">
-                      <Input placeholder="Ubigeo" className="h-9 w-24" value={ubiPartida} onChange={e => setUbiPartida(e.target.value)} />
-                      <Input placeholder="Dirección completa" className="h-9 flex-1" value={dirPartida} onChange={e => setDirPartida(e.target.value)} />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5 md:col-span-2 lg:col-span-2">
-                    <Label className="text-xs font-semibold text-slate-600">Punto de Llegada (Ubigeo — Dirección)</Label>
-                    <div className="flex gap-2">
-                      <Input placeholder="Ubigeo" className="h-9 w-24" value={ubiLlegada} onChange={e => setUbiLlegada(e.target.value)} />
-                      <Input placeholder="Dirección completa" className="h-9 flex-1" value={dirLlegada} onChange={e => setDirLlegada(e.target.value)} />
-                    </div>
-                  </div>
+          {/* CARD 3: GUÍA DE REMISIÓN — oculta para Nota de Venta */}
+          {!esNotaDeVenta && (
+            <Card className="shadow-sm border-slate-200">
+              <CardHeader className="bg-slate-50 border-b pb-3 pt-4 px-5 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-sm font-semibold text-slate-700 uppercase tracking-wider">
+                  Guía de Remisión Remitente
+                </CardTitle>
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="guia-switch" className="text-xs font-medium text-slate-600 cursor-pointer">Generar Guía</Label>
+                  <Switch id="guia-switch" checked={generarGuia} onCheckedChange={setGenerarGuia} />
                 </div>
-              </CardContent>
-            )}
-          </Card>
+              </CardHeader>
+              {generarGuia && (
+                <CardContent className="p-5">
+                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-600">Vehículo</Label>
+                      <Select value={vehiculoId} onValueChange={setVehiculoId}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Seleccione Placa" /></SelectTrigger>
+                        <SelectContent>{vehiculos.map(v => <SelectItem key={v.id} value={v.id.toString()}>{v.placa} ({v.marca})</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-600">Conductor</Label>
+                      <Select value={conductorId} onValueChange={setConductorId}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Seleccione Conductor" /></SelectTrigger>
+                        <SelectContent>{conductores.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.nombreCompleto}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-600">Peso Bruto (KGM)</Label>
+                      <Input type="number" step="0.01" className="h-9" value={pesoBruto} onChange={e => setPesoBruto(e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-600">Motivo Traslado</Label>
+                      <Select value={motivoTraslado} onValueChange={setMotivoTraslado}>
+                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="01">01 - Venta</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5 md:col-span-2 lg:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-600">Punto de Partida (Ubigeo — Dirección)</Label>
+                      <div className="flex gap-2">
+                        <Input placeholder="Ubigeo" className="h-9 w-24" value={ubiPartida} onChange={e => setUbiPartida(e.target.value)} />
+                        <Input placeholder="Dirección completa" className="h-9 flex-1" value={dirPartida} onChange={e => setDirPartida(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5 md:col-span-2 lg:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-600">Punto de Llegada (Ubigeo — Dirección)</Label>
+                      <div className="flex gap-2">
+                        <Input placeholder="Ubigeo" className="h-9 w-24" value={ubiLlegada} onChange={e => setUbiLlegada(e.target.value)} />
+                        <Input placeholder="Dirección completa" className="h-9 flex-1" value={dirLlegada} onChange={e => setDirLlegada(e.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+          )}
 
         </div>{/* fin columna izquierda */}
 
@@ -690,7 +725,13 @@ export default function NuevaVenta() {
 
             {!canSubmit && detalles.length > 0 && (
               <p className="text-xs text-center text-slate-400">
-                {!clienteId ? 'Selecciona un cliente.' : !serieId ? 'Selecciona una serie.' : !isFacturaValid ? 'La factura requiere RUC (11 dígitos).' : 'Completa todos los campos requeridos.'}
+                {!serieId
+                  ? 'Selecciona una serie.'
+                  : !clienteId && !esNotaDeVenta
+                    ? 'Selecciona un cliente.'
+                    : !isFacturaValid
+                      ? 'La factura requiere RUC (11 dígitos).'
+                      : 'Completa todos los campos requeridos.'}
               </p>
             )}
 

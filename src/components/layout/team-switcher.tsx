@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { ChevronsUpDown, LogOut, Home, Store } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import {

@@ -8,12 +8,10 @@ import {
   History,
   Settings,
   UserCog,
-  Receipt,
   Tags,
   Truck,
   IdCard,
   FileDigit,
-  ShoppingCart,
   Landmark
 } from 'lucide-react'
 import { type SidebarData } from '../types'

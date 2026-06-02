@@ -39,7 +39,9 @@ export function RecentSales({ ventas }: RecentSalesProps) {
                   {venta.clienteEmail}
                 </p>
               </div>
-              <div className='font-medium text-emerald-600'>+${venta.monto.toFixed(2)}</div>
+              <div className='font-medium text-emerald-600'>
+                +{new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(venta.monto)}
+              </div>
             </div>
           </div>
         )

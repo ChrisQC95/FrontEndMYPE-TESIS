@@ -1,92 +1,114 @@
-import { Button } from "@/components/ui/button"
-import { ChevronRight, Store } from "lucide-react"
 
 export function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-royal-blue via-royal-blue to-sky-blue py-12 lg:py-16">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
-      
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
-          {/* Left Content */}
-          <div className="text-center lg:text-left">
-            <h1 className="text-balance text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
-              Formaliza tu Negocio
-              <span className="block text-sky-blue/90">
-                de Manera Fácil y Rápida
-              </span>
-            </h1>
-            <p className="mt-4 text-pretty text-lg text-white/80 sm:text-xl">
-              Convierte tu negocio en formal en pocos pasos.
-            </p>
-            <div className="mt-8">
-              <Button 
-                size="lg" 
-                className="bg-vibrant-orange hover:bg-vibrant-orange/90 text-white font-semibold text-base shadow-lg transition-all hover:shadow-xl hover:scale-105 px-8"
-              >
-                Ver Guia Rapida
-                <ChevronRight className="ml-2 h-5 w-5" />
-              </Button>
-            </div>
-          </div>
+    <section className="relative overflow-hidden bg-gradient-to-br from-blue-950 via-blue-900 to-blue-700 py-16 lg:py-24">
 
-          {/* Right Illustration */}
-          <div className="flex justify-center lg:justify-end">
-            <div className="relative">
-              {/* Store Illustration */}
-              <div className="relative rounded-2xl bg-white/10 backdrop-blur-sm p-6 shadow-2xl">
-                <div className="flex flex-col items-center">
-                  {/* Awning */}
-                  <div className="w-64 sm:w-72">
-                    <svg viewBox="0 0 288 40" className="w-full">
-                      <defs>
-                        <linearGradient id="awning1" x1="0%" y1="0%" x2="0%" y2="100%">
-                          <stop offset="0%" stopColor="#f97316" />
-                          <stop offset="100%" stopColor="#ea580c" />
-                        </linearGradient>
-                        <linearGradient id="awning2" x1="0%" y1="0%" x2="0%" y2="100%">
-                          <stop offset="0%" stopColor="#ffffff" />
-                          <stop offset="100%" stopColor="#f1f5f9" />
-                        </linearGradient>
-                      </defs>
-                      <path d="M0,0 L288,0 L288,20 Q264,40 240,20 Q216,40 192,20 Q168,40 144,20 Q120,40 96,20 Q72,40 48,20 Q24,40 0,20 Z" fill="url(#awning1)" />
-                      <path d="M24,0 L24,20 Q48,40 72,20 L72,0 Z" fill="url(#awning2)" />
-                      <path d="M72,0 L72,20 Q96,40 120,20 L120,0 Z" fill="url(#awning1)" />
-                      <path d="M120,0 L120,20 Q144,40 168,20 L168,0 Z" fill="url(#awning2)" />
-                      <path d="M168,0 L168,20 Q192,40 216,20 L216,0 Z" fill="url(#awning1)" />
-                      <path d="M216,0 L216,20 Q240,40 264,20 L264,0 Z" fill="url(#awning2)" />
-                    </svg>
-                  </div>
-                  
-                  {/* Store front */}
-                  <div className="mt-2 w-64 sm:w-72 rounded-lg bg-gradient-to-b from-sky-100 to-sky-50 p-4 shadow-inner">
-                    <div className="flex items-end justify-center gap-3">
-                      {/* Window/Door */}
-                      <div className="h-20 w-16 rounded-t-lg bg-sky-200/60 border-2 border-sky-300" />
-                      <div className="h-24 w-12 rounded-t-lg bg-sky-300/60 border-2 border-sky-400" />
-                      {/* Products */}
-                      <div className="flex flex-col gap-1">
-                        <div className="h-8 w-8 rounded bg-red-400 shadow-sm" />
-                        <div className="h-10 w-8 rounded bg-yellow-400 shadow-sm" />
-                        <div className="h-6 w-8 rounded bg-emerald-400 shadow-sm" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Floating elements */}
-                <div className="absolute -left-4 top-1/2 -translate-y-1/2 rounded-lg bg-white p-2 shadow-lg">
-                  <Store className="h-6 w-6 text-royal-blue" />
-                </div>
-                <div className="absolute -right-2 -top-2 rounded-full bg-success-green p-2 shadow-lg">
-                  <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
+      {/* ── Fondo decorativo: cuadrícula punteada sutil ─────────────────── */}
+      <div
+        className="absolute inset-0 opacity-[0.07]"
+        style={{
+          backgroundImage: `radial-gradient(circle, #ffffff 1px, transparent 1px)`,
+          backgroundSize: '32px 32px',
+        }}
+      />
+      {/* Glow difuso en esquina superior derecha */}
+      <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-blue-400/20 blur-3xl" />
+      {/* Glow suave en esquina inferior izquierda */}
+      <div className="absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-sky-500/15 blur-3xl" />
+
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+
+          {/* ── Columna Izquierda: Texto ──────────────────────────────────── */}
+          <div className="text-center lg:text-left">
+
+            {/* Badge / Pill */}
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 backdrop-blur-sm">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-xs font-semibold uppercase tracking-widest text-white/90">
+                Facturador de Entrenamiento
+              </span>
+            </div>
+
+            <h1 className="text-5xl font-extrabold tracking-tight text-white md:text-6xl lg:text-6xl xl:text-7xl">
+              Formaliza tu
+              <span className="block mt-1 bg-gradient-to-r from-sky-300 to-emerald-300 bg-clip-text text-transparent">
+                Negocio
+              </span>
+              de Manera Fácil
+            </h1>
+
+            <p className="mt-6 max-w-lg text-lg leading-relaxed text-blue-100/80 lg:mx-0 mx-auto">
+              Gestiona tus ventas con Facturas, Boletas y Notas de Venta.
+              Prepárate para operar con múltiples clientes y da el salto
+              a la formalización con confianza.
+            </p>
+
+            {/* Stats row */}
+            <div className="mt-10 flex flex-wrap justify-center gap-6 lg:justify-start">
+              <div className="flex items-center gap-2">
+                <span className="text-3xl font-bold text-white">3</span>
+                <span className="text-sm text-blue-200 leading-tight max-w-[80px]">tipos de comprobante</span>
+              </div>
+              <div className="h-10 w-px bg-white/20 hidden sm:block" />
+              <div className="flex items-center gap-2">
+                <span className="text-3xl font-bold text-white">100%</span>
+                <span className="text-sm text-blue-200 leading-tight max-w-[80px]">en la nube</span>
+              </div>
+              <div className="h-10 w-px bg-white/20 hidden sm:block" />
+              <div className="flex items-center gap-2">
+                <span className="text-3xl font-bold text-white">∞</span>
+                <span className="text-sm text-blue-200 leading-tight max-w-[80px]">clientes registrables</span>
               </div>
             </div>
           </div>
+
+          {/* ── Columna Derecha: Fotografía + Widget flotante ─────────────── */}
+          <div className="relative flex justify-center lg:justify-end">
+
+            {/* Contenedor de la foto */}
+            <div className="relative w-full max-w-md lg:max-w-full">
+
+              {/* Foto principal del emprendedor */}
+              <img
+                src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?q=80&w=800&auto=format&fit=crop"
+                alt="Emprendedor usando ERP"
+                className="rounded-2xl object-cover shadow-2xl h-[380px] w-full lg:h-[440px] object-top"
+              />
+
+              {/* Sombra de profundidad bajo la foto */}
+              <div className="absolute -bottom-4 left-4 right-4 h-12 rounded-2xl bg-blue-950/40 blur-xl -z-10" />
+
+              {/* Widget "Control de Ventas" — flotante inferior izquierda */}
+              <div className="absolute -bottom-6 -left-4 sm:left-0 w-64 z-10 shadow-2xl rounded-2xl overflow-hidden">
+                <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl">
+                  <div className="pb-3 pt-4 px-5">
+                    <p className="text-sm font-semibold text-slate-700 uppercase tracking-wider">
+                      Control de Ventas (Entrenamiento)
+                    </p>
+                  </div>
+                  <div className="px-5 pb-4">
+                    <ul className="space-y-2.5">
+                      {[
+                        'Emisión de Notas de Venta',
+                        'Control de Inventario',
+                        'Registro de Clientes',
+                      ].map((label) => (
+                        <li key={label} className="flex items-center gap-3">
+                          <svg className="h-5 w-5 shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-sm font-medium text-slate-700">{label}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </div>
       </div>
     </section>

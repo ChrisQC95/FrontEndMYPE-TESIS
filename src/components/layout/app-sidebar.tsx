@@ -17,16 +17,7 @@ export function AppSidebar() {
   const { collapsible, variant } = useLayout()
   const { dbUser, empresaPerfil } = useAuth()
 
-  // Combinamos los datos estáticos con los datos reales del usuario/empresa
-  const dynamicTeams = [
-    {
-      ...sidebarData.teams[0],
-      name: empresaPerfil?.razonSocial || dbUser?.razonSocial || sidebarData.teams[0].name,
-      logoUrl: empresaPerfil?.logoUrl || undefined,
-    },
-    ...sidebarData.teams.slice(1),
-  ]
-
+  // Combinamos los datos estáticos con los datos reales del usuario
   const dynamicUser = {
     ...sidebarData.user,
     name: dbUser?.razonSocial || dbUser?.email?.split('@')[0] || sidebarData.user.name,
@@ -37,7 +28,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible={collapsible} variant={variant}>
       <SidebarHeader>
-        <TeamSwitcher teams={dynamicTeams} />
+        <TeamSwitcher />
 
         {/* Replace <TeamSwitch /> with the following <AppTitle />
          /* if you want to use the normal app title instead of TeamSwitch dropdown */}

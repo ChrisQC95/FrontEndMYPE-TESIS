@@ -9,6 +9,7 @@ import { numeroALetras } from '@/lib/numeroALetras'
 const TIPOS_COMPROBANTE: Record<number, string> = {
   1: 'FACTURA ELECTRÓNICA',
   2: 'BOLETA DE VENTA ELECTRÓNICA',
+  3: 'NOTA DE VENTA'
 }
 
 const MONEDAS: Record<number, string> = {

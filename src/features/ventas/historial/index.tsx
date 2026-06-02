@@ -14,7 +14,6 @@ import {
   FileDown,
   FileSpreadsheet,
   Building2,
-  Wallet,
   Search,
   CalendarRange,
   TrendingUp,
@@ -63,15 +62,14 @@ const TIPOS_PAGO: Record<number, string> = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const getBadgeClasses = (estado: string | null) => {
   switch (estado) {
-    case 'ACEPTADO':  return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    case 'ACEPTADO': return 'bg-emerald-50 text-emerald-700 border-emerald-200'
     case 'PENDIENTE': return 'bg-amber-50 text-amber-700 border-amber-200'
     case 'RECHAZADO': return 'bg-red-50 text-red-700 border-red-200'
-    case 'ANULADO':   return 'bg-slate-100 text-slate-500 border-slate-200'
-    default:          return 'bg-amber-50 text-amber-700 border-amber-200'
+    case 'ANULADO': return 'bg-slate-100 text-slate-500 border-slate-200'
+    default: return 'bg-amber-50 text-amber-700 border-amber-200'
   }
 }
 
-const hoyISO = () => new Date().toISOString().split('T')[0]
 const primerDiaMes = () => format(startOfMonth(new Date()), 'yyyy-MM-dd')
 const ultimoDiaMes = () => format(endOfMonth(new Date()), 'yyyy-MM-dd')
 
@@ -122,7 +120,7 @@ export function HistorialVentas() {
 
   // ─── Helpers de socio ─────────────────────────────────────────────────────
   const getSocio = (id: number) => socios.find(s => s.id === id)
-  const getSocioNombre    = (id: number) => getSocio(id)?.nombreRazonSocial ?? `ID: ${id}`
+  const getSocioNombre = (id: number) => getSocio(id)?.nombreRazonSocial ?? `ID: ${id}`
   const getSocioDocumento = (id: number) => getSocio(id)?.numeroDocumento ?? ''
   const getSocioDireccion = (id: number) => getSocio(id)?.direccionFiscal ?? ''
 
@@ -164,17 +162,17 @@ export function HistorialVentas() {
 
       // Transformar a filas legibles para el Excel
       const filas = datos.map(r => ({
-        'Fecha Emisión':     format(new Date(r.fechaEmision), 'dd/MM/yyyy HH:mm'),
-        'Tipo Comprobante':  r.tipoComprobante,
-        'Serie':             r.serie,
-        'Correlativo':       r.correlativo,
-        'RUC/DNI Cliente':   r.rucCliente,
-        'Razón Social':      r.razonSocialCliente,
+        'Fecha Emisión': format(new Date(r.fechaEmision), 'dd/MM/yyyy HH:mm'),
+        'Tipo Comprobante': r.tipoComprobante,
+        'Serie': r.serie,
+        'Correlativo': r.correlativo,
+        'RUC/DNI Cliente': r.rucCliente,
+        'Razón Social': r.razonSocialCliente,
         'Producto/Servicio': r.productoNombre,
-        'Cantidad':          r.cantidad,
-        'Precio Unitario':   r.precioUnitario,
-        'Subtotal Ítem':     r.subtotalItem,
-        'Estado SUNAT':      r.estadoSunat ?? 'PENDIENTE',
+        'Cantidad': r.cantidad,
+        'Precio Unitario': r.precioUnitario,
+        'Subtotal Ítem': r.subtotalItem,
+        'Estado SUNAT': r.estadoSunat ?? 'PENDIENTE',
       }))
 
       const worksheet = XLSX.utils.json_to_sheet(filas)
