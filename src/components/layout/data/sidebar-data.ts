@@ -12,7 +12,8 @@ import {
   Truck,
   IdCard,
   FileDigit,
-  Landmark
+  Landmark,
+  LifeBuoy
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -120,6 +121,16 @@ export const sidebarData: SidebarData = {
               icon: Landmark,
             },
           ],
+        },
+      ],
+    },
+    {
+      title: 'Soporte',
+      items: [
+        {
+          title: 'Centro de Ayuda',
+          url: '/help-center',
+          icon: LifeBuoy,
         },
       ],
     },

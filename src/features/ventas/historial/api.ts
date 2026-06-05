@@ -13,12 +13,33 @@ const getToken = async (): Promise<string> => {
 export const getHistorialVentas = async (usuarioId: number): Promise<Venta[]> => {
   const token = await getToken()
   const res = await fetch(`${BASE_URL}/ventas/usuario/${usuarioId}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) throw new Error('Error al cargar el historial de ventas')
   return res.json()
+}
+
+/**
+ * Emite una Nota de Crédito sobre la venta con el ID dado.
+ * POST /api/ventas/{id}/nota-credito
+ */
+export const emitirNotaCredito = async (
+  ventaId: number,
+  motivoNcCodigo: string,
+  sustentoNota: string
+): Promise<Venta> => {
+  const token = await getToken()
+  const res = await fetch(`${BASE_URL}/ventas/${ventaId}/nota-credito`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ motivoNcCodigo, sustentoNota }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data?.error ?? 'Error al emitir la Nota de Crédito')
+  return data
 }
 
 /**
@@ -36,9 +57,7 @@ export const getReporteVentas = async (
     fechaFin,
   })
   const res = await fetch(`${BASE_URL}/ventas/reporte?${params}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) throw new Error('Error al generar el reporte')
   return res.json()

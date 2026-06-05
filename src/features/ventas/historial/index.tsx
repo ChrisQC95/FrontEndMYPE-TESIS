@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getHistorialVentas, getReporteVentas } from './api'
+import { getHistorialVentas, getReporteVentas, emitirNotaCredito } from './api'
 import { getSociosNegocio } from '../nueva-venta/api'
 import { getCuentas } from '@/features/configuracion/cuentas-bancarias/api'
 import type { Venta, ReporteVentaExcelRow } from './types'
@@ -17,6 +17,8 @@ import {
   Search,
   CalendarRange,
   TrendingUp,
+  RotateCcw,
+  XCircle,
 } from 'lucide-react'
 import { PDFDownloadLink } from '@react-pdf/renderer'
 import { FacturaPDF } from './components/FacturaPDF'
@@ -33,7 +35,20 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -45,11 +60,31 @@ import { Separator } from '@/components/ui/separator'
 const TIPOS_COMPROBANTE: Record<number, string> = {
   1: 'FACTURA ELECTRÓNICA',
   2: 'BOLETA DE VENTA',
+  4: 'NOTA DE CRÉDITO',
 }
 const TIPOS_COMPROBANTE_CORTO: Record<number, string> = {
   1: 'FAC',
   2: 'BOV',
+  4: 'NC',
 }
+
+// ─── Catálogo 09 SUNAT — Motivos de Nota de Crédito ─────────────────────────
+const MOTIVOS_NC = [
+  { codigo: '01', descripcion: 'Anulación de la operación' },
+  { codigo: '02', descripcion: 'Anulación por error en el RUC' },
+  { codigo: '03', descripcion: 'Corrección por error en la descripción o atención de reclamo' },
+  { codigo: '04', descripcion: 'Descuento global' },
+  { codigo: '05', descripcion: 'Descuento por ítem' },
+  { codigo: '06', descripcion: 'Devolución total' },
+  { codigo: '07', descripcion: 'Devolución por ítem' },
+  { codigo: '08', descripcion: 'Bonificación' },
+  { codigo: '09', descripcion: 'Disminución en el valor' },
+  { codigo: '10', descripcion: 'Otros Conceptos' },
+  { codigo: '11', descripcion: 'Ajustes de operaciones de exportación' },
+  { codigo: '12', descripcion: 'Ajustes afectos al IVAP' },
+  { codigo: '13', descripcion: 'Corrección o modificación del monto neto pendiente de pago y/o fechas de vencimiento' }
+];
+
 const MONEDAS: Record<number, string> = {
   1: 'PEN - Soles',
   2: 'USD - Dólares',
@@ -89,9 +124,42 @@ export function HistorialVentas() {
   const [fechaInicio, setFechaInicio] = useState(primerDiaMes())
   const [fechaFin, setFechaFin] = useState(ultimoDiaMes())
 
-  // ─── Modal ────────────────────────────────────────────────────────────────
+  // ─── Modal detalle venta ────────────────────────────────────────────────────────
   const [ventaActiva, setVentaActiva] = useState<Venta | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+
+  // ─── Modal Nota de Crédito ─────────────────────────────────────────────────────
+  const [ventaNcTarget, setVentaNcTarget] = useState<Venta | null>(null)
+  const [ncModalOpen, setNcModalOpen] = useState(false)
+  const [ncMotivo, setNcMotivo] = useState('')
+  const [ncSustento, setNcSustento] = useState('')
+  const [ncLoading, setNcLoading] = useState(false)
+
+  const handleEmitirNC = async () => {
+    if (!ventaNcTarget || !ncMotivo || !ncSustento.trim()) {
+      toast.warning('Completa el motivo y el sustento antes de continuar.')
+      return
+    }
+    setNcLoading(true)
+    try {
+      await emitirNotaCredito(ventaNcTarget.id, ncMotivo, ncSustento.trim())
+      toast.success(`Nota de Crédito emitida correctamente para ${ventaNcTarget.serie}-${String(ventaNcTarget.correlativo).padStart(8, '0')}`)
+      setNcModalOpen(false)
+      setNcMotivo('')
+      setNcSustento('')
+      setVentaNcTarget(null)
+      // Recargar el historial para reflejar documentoOrigenId actualizado
+      if (currentUserId) {
+        const updated = await getHistorialVentas(currentUserId)
+        setVentas(updated.sort((a, b) => b.id - a.id))
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al emitir la Nota de Crédito'
+      toast.error(msg)
+    } finally {
+      setNcLoading(false)
+    }
+  }
 
   // ─── Carga inicial ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -144,10 +212,44 @@ export function HistorialVentas() {
 
   // ─── KPIs del período filtrado ────────────────────────────────────────────
   const kpis = useMemo(() => {
-    const totalPeriodo = ventasFiltradas.reduce((acc, v) => acc + v.total, 0)
-    const totalIgv = ventasFiltradas.reduce((acc, v) => acc + v.igv, 0)
-    return { totalPeriodo, totalIgv, cantidad: ventasFiltradas.length }
-  }, [ventasFiltradas])
+    let totalPeriodo = 0
+    let totalIgv = 0
+    let cantidad = 0
+
+    // 1. Crear un registro de todos los IDs de ventas que están "muertas"
+    // (Ya sea porque se anularon directamente o porque tienen una NC válida)
+    const ventasAnuladas = new Set<number>()
+
+    ventas.forEach(v => {
+      // Si la venta está anulada o tiene un documento que la originó (NC aplicada)
+      if (v.estadoSunat === 'ANULADO' || v.documentoOrigenId != null) {
+        ventasAnuladas.add(v.id)
+      }
+      // Si es una Nota de Crédito válida, el documento que modifica "muere"
+      if (v.tipoComprobanteId === 4 && v.documentoModificadoId) {
+        if (v.estadoSunat !== 'ANULADO') {
+          ventasAnuladas.add(v.documentoModificadoId)
+        }
+      }
+    })
+
+    // 2. Calcular solo iterando sobre los "sobrevivientes"
+    for (const v of ventasFiltradas) {
+      // Las Notas de Crédito no suman dinero a la caja, se ignoran en el neto final.
+      if (v.tipoComprobanteId === 4) continue
+
+      // Si la venta está en la lista negra (anulada), vale 0. Se ignora.
+      if (ventasAnuladas.has(v.id)) continue
+
+      // Comprobante 100% vigente y positivo
+      totalPeriodo += v.total
+      totalIgv += v.igv
+      cantidad++
+    }
+
+    return { totalPeriodo, totalIgv, cantidad }
+  }, [ventasFiltradas, ventas])
+
 
   // ─── Descarga Excel ───────────────────────────────────────────────────────
   const handleDescargarExcel = async () => {
@@ -216,8 +318,9 @@ export function HistorialVentas() {
               <TrendingUp className="h-5 w-5 text-indigo-600" />
             </div>
             <div>
-              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Ventas en Período</p>
+              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Ingresos Netos en Período</p>
               <p className="text-2xl font-bold text-slate-900">S/ {kpis.totalPeriodo.toFixed(2)}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Excl. anulados · ya descontadas NC</p>
             </div>
           </CardContent>
         </Card>
@@ -227,8 +330,9 @@ export function HistorialVentas() {
               <CalendarRange className="h-5 w-5 text-emerald-600" />
             </div>
             <div>
-              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">IGV Total</p>
+              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">IGV Neto</p>
               <p className="text-2xl font-bold text-slate-900">S/ {kpis.totalIgv.toFixed(2)}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Excl. anulados · ya descontadas NC</p>
             </div>
           </CardContent>
         </Card>
@@ -238,8 +342,9 @@ export function HistorialVentas() {
               <FileSpreadsheet className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Comprobantes</p>
+              <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Comprobantes Vigentes</p>
               <p className="text-2xl font-bold text-slate-900">{kpis.cantidad}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Solo FAC · BOL · NV activas</p>
             </div>
           </CardContent>
         </Card>
@@ -293,91 +398,121 @@ export function HistorialVentas() {
 
       {/* ── TABLA PRINCIPAL ──────────────────────────────────────────────── */}
       <div className="border rounded-lg bg-white shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader className="bg-slate-50">
-            <TableRow className="border-b border-slate-200">
-              <TableHead className="font-semibold text-slate-600 w-[110px]">Fecha</TableHead>
-              <TableHead className="font-semibold text-slate-600">Comprobante</TableHead>
-              <TableHead className="font-semibold text-slate-600">Cliente</TableHead>
-              <TableHead className="font-semibold text-slate-600 text-right">Total</TableHead>
-              <TableHead className="font-semibold text-slate-600 text-center w-[110px]">Estado</TableHead>
-              <TableHead className="font-semibold text-slate-600 text-right w-[80px]">Ver</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-slate-400">
-                  Cargando historial...
-                </TableCell>
+        <div className="overflow-x-auto pb-1">
+          <Table>
+            <TableHeader className="bg-slate-50">
+              <TableRow className="border-b border-slate-200">
+                <TableHead className="font-semibold text-slate-600 w-[110px]">Fecha</TableHead>
+                <TableHead className="font-semibold text-slate-600">Comprobante</TableHead>
+                <TableHead className="font-semibold text-slate-600">Cliente</TableHead>
+                <TableHead className="font-semibold text-slate-600 text-right">Total</TableHead>
+                <TableHead className="font-semibold text-slate-600 text-center w-[110px]">Estado</TableHead>
+                <TableHead className="font-semibold text-slate-600 text-center w-[80px]">Opciones</TableHead>
               </TableRow>
-            ) : ventasFiltradas.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-slate-400">
-                  {busqueda ? 'No se encontraron resultados para tu búsqueda.' : 'No hay ventas en el período seleccionado.'}
-                </TableCell>
-              </TableRow>
-            ) : (
-              ventasFiltradas.map((venta) => (
-                <TableRow key={venta.id} className="hover:bg-slate-50/70 transition-colors border-b border-slate-100 last:border-0">
-                  <TableCell className="text-sm text-slate-600 py-3">
-                    {format(new Date(venta.fechaEmision), 'dd MMM yyyy', { locale: es })}
-                  </TableCell>
-                  <TableCell className="py-3">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
-                        {TIPOS_COMPROBANTE_CORTO[venta.tipoComprobanteId]}
-                      </span>
-                      <span className="font-mono text-sm font-semibold text-slate-800">
-                        {venta.serie}-{venta.correlativo.toString().padStart(6, '0')}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-3">
-                    <div className="flex flex-col">
-                      <span
-                        className="text-sm font-medium text-slate-800 truncate max-w-[220px]"
-                        title={getSocioNombre(venta.socioNegocioId)}
-                      >
-                        {getSocioNombre(venta.socioNegocioId)}
-                      </span>
-                      <span className="text-xs text-slate-400">{getSocioDocumento(venta.socioNegocioId)}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right py-3">
-                    <span className="text-sm font-bold text-slate-900 font-mono">
-                      S/ {venta.total.toFixed(2)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-center py-3">
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 ${getBadgeClasses(venta.estadoSunat)}`}
-                    >
-                      {venta.estadoSunat ?? 'PENDIENTE'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right py-3">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
-                      onClick={() => { setVentaActiva(venta); setModalOpen(true) }}
-                      title="Ver detalle"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-32 text-center text-slate-400">
+                    Cargando historial...
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : ventasFiltradas.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-32 text-center text-slate-400">
+                    {busqueda ? 'No se encontraron resultados para tu búsqueda.' : 'No hay ventas en el período seleccionado.'}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                ventasFiltradas.map((venta) => (
+                  <TableRow key={venta.id} className="hover:bg-slate-50/70 transition-colors border-b border-slate-100 last:border-0">
+                    <TableCell className="text-sm text-slate-600 py-3">
+                      {format(new Date(venta.fechaEmision), 'dd MMM yyyy', { locale: es })}
+                    </TableCell>
+                    <TableCell className="py-3">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                          {TIPOS_COMPROBANTE_CORTO[venta.tipoComprobanteId]}
+                        </span>
+                        <span className="font-mono text-sm font-semibold text-slate-800">
+                          {venta.serie}-{venta.correlativo.toString().padStart(6, '0')}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-3">
+                      <div className="flex flex-col">
+                        <span
+                          className="text-sm font-medium text-slate-800 truncate max-w-[220px]"
+                          title={getSocioNombre(venta.socioNegocioId)}
+                        >
+                          {getSocioNombre(venta.socioNegocioId)}
+                        </span>
+                        <span className="text-xs text-slate-400">{getSocioDocumento(venta.socioNegocioId)}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right py-3">
+                      <span className="text-sm font-bold text-slate-900 font-mono">
+                        S/ {venta.total.toFixed(2)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center py-3">
+                      {venta.documentoOrigenId != null ? (
+                        <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-rose-50 text-rose-600 border-rose-200">
+                          <XCircle className="w-3 h-3 mr-1 inline-block" />
+                          ANULADO
+                        </Badge>
+                      ) : venta.tipoComprobanteId === 4 ? (
+                        <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-violet-50 text-violet-700 border-violet-200">
+                          <RotateCcw className="w-3 h-3 mr-1 inline-block" />
+                          N. CRÉDITO
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 ${getBadgeClasses(venta.estadoSunat)}`}
+                        >
+                          {venta.estadoSunat ?? 'PENDIENTE'}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        {/* Botón Ver Detalle */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                          onClick={() => { setVentaActiva(venta); setModalOpen(true) }}
+                          title="Ver detalle"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        {/* Botón Emitir NC — solo para Factura (1) y Boleta (2) no anuladas */}
+                        {(venta.tipoComprobanteId === 1 || venta.tipoComprobanteId === 2)
+                          && venta.documentoOrigenId == null && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                              onClick={() => { setVentaNcTarget(venta); setNcModalOpen(true) }}
+                              title="Emitir Nota de Crédito"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </Button>
+                          )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {/* ── MODAL DETALLE — DISEÑO FACTURA CORPORATIVA ───────────────────── */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden border-slate-200 shadow-xl gap-0">
+        <DialogContent className="w-[95vw] max-w-4xl p-0 overflow-hidden border-slate-200 shadow-xl gap-0">
           {ventaActiva && (
             <div className="flex flex-col max-h-[90vh]">
 
@@ -540,40 +675,54 @@ export function HistorialVentas() {
 
               {/* FOOTER */}
               <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <PDFDownloadLink
-                  document={
-                    <FacturaPDF
-                      venta={ventaActiva}
-                      clienteNombre={getSocioNombre(ventaActiva.socioNegocioId)}
-                      clienteDocumento={getSocioDocumento(ventaActiva.socioNegocioId)}
-                      clienteDireccion={getSocioDireccion(ventaActiva.socioNegocioId)}
-                      empresa={empresaPerfil ?? {
-                        usuarioId: dbUser?.id ?? 0,
-                        ruc: '',
-                        razonSocial: dbUser?.razonSocial ?? '',
-                        nombreComercial: '',
-                        direccionFiscal: '',
-                        telefono: '',
-                        emailContacto: '',
-                        logoUrl: '',
-                      }}
-                      cuentasBancarias={cuentasBancarias}
-                    />
-                  }
-                  fileName={`${ventaActiva.serie}-${ventaActiva.correlativo.toString().padStart(6, '0')}.pdf`}
-                >
-                  {({ loading: pdfLoading }) => (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 w-full sm:w-auto"
-                      disabled={pdfLoading}
-                    >
-                      <FileDown className="w-4 h-4 mr-2" />
-                      {pdfLoading ? 'Generando PDF...' : 'Descargar PDF'}
-                    </Button>
-                  )}
-                </PDFDownloadLink>
+                {ventaActiva.documentoOrigenId != null ? (
+                  /* Venta anulada por NC — PDF inhabilitado */
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-200 text-slate-400 w-full sm:w-auto cursor-not-allowed"
+                    disabled
+                    title="Este documento fue anulado mediante Nota de Crédito"
+                  >
+                    <FileDown className="w-4 h-4 mr-2" />
+                    PDF No Disponible
+                  </Button>
+                ) : (
+                  <PDFDownloadLink
+                    document={
+                      <FacturaPDF
+                        venta={ventaActiva}
+                        clienteNombre={getSocioNombre(ventaActiva.socioNegocioId)}
+                        clienteDocumento={getSocioDocumento(ventaActiva.socioNegocioId)}
+                        clienteDireccion={getSocioDireccion(ventaActiva.socioNegocioId)}
+                        empresa={empresaPerfil ?? {
+                          usuarioId: dbUser?.id ?? 0,
+                          ruc: '',
+                          razonSocial: dbUser?.razonSocial ?? '',
+                          nombreComercial: '',
+                          direccionFiscal: '',
+                          telefono: '',
+                          emailContacto: '',
+                          logoUrl: '',
+                        }}
+                        cuentasBancarias={cuentasBancarias}
+                      />
+                    }
+                    fileName={`${ventaActiva.serie}-${ventaActiva.correlativo.toString().padStart(6, '0')}.pdf`}
+                  >
+                    {({ loading: pdfLoading }) => (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 w-full sm:w-auto"
+                        disabled={pdfLoading}
+                      >
+                        <FileDown className="w-4 h-4 mr-2" />
+                        {pdfLoading ? 'Generando PDF...' : 'Descargar PDF'}
+                      </Button>
+                    )}
+                  </PDFDownloadLink>
+                )}{/* fin ternario */}
 
                 <p className="text-xs text-slate-400 text-center sm:text-right">
                   Emitido el {format(new Date(ventaActiva.fechaEmision), "d 'de' MMMM 'de' yyyy", { locale: es })}
@@ -581,6 +730,103 @@ export function HistorialVentas() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── MODAL NOTA DE CRÉDITO ─────────────────────────────────────── */}
+      <Dialog
+        open={ncModalOpen}
+        onOpenChange={(open) => {
+          if (!open) { setNcMotivo(''); setNcSustento(''); setVentaNcTarget(null) }
+          setNcModalOpen(open)
+        }}
+      >
+        <DialogContent className="w-[95vw] max-w-lg border-slate-200 shadow-xl">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100">
+                <RotateCcw className="h-5 w-5 text-rose-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-bold text-slate-900">
+                  Emitir Nota de Crédito
+                </DialogTitle>
+                {ventaNcTarget && (
+                  <DialogDescription className="text-sm text-slate-500">
+                    Para: <strong className="text-slate-700 font-mono">
+                      {ventaNcTarget.serie}-{String(ventaNcTarget.correlativo).padStart(8, '0')}
+                    </strong>
+                  </DialogDescription>
+                )}
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            {/* Motivo SUNAT Cat. 09 */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-slate-700">
+                Motivo (Catálogo 09 SUNAT) <span className="text-rose-500">*</span>
+              </Label>
+              <Select value={ncMotivo} onValueChange={setNcMotivo}>
+                <SelectTrigger className="h-10 border-slate-300">
+                  <SelectValue placeholder="Selecciona el motivo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {MOTIVOS_NC.map(m => (
+                    <SelectItem key={m.codigo} value={m.codigo}>
+                      {m.codigo} — {m.descripcion}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Sustento */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-slate-700">
+                Sustento <span className="text-rose-500">*</span>
+              </Label>
+              <Textarea
+                placeholder="Describe el motivo de la devolución o anulación..."
+                className="min-h-[90px] resize-none border-slate-300"
+                value={ncSustento}
+                onChange={e => setNcSustento(e.target.value)}
+                maxLength={255}
+              />
+              <p className="text-xs text-slate-400 text-right">{ncSustento.length}/255</p>
+            </div>
+
+            {/* Aviso */}
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 flex gap-2">
+              <XCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700 leading-relaxed">
+                Esta acción es <strong>irreversible</strong>. La venta quedará marcada como
+                anulada y el stock de los productos será repuesto automáticamente.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setNcModalOpen(false)}
+              disabled={ncLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+              onClick={handleEmitirNC}
+              disabled={ncLoading || !ncMotivo || !ncSustento.trim()}
+            >
+              {ncLoading ? (
+                <><RotateCcw className="w-4 h-4 mr-2 animate-spin" />Procesando...</>
+              ) : (
+                <><RotateCcw className="w-4 h-4 mr-2" />Emitir Nota de Crédito</>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

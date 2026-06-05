@@ -68,14 +68,6 @@ export function Dashboard() {
 
   return (
     <>
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <Header>
-        <div className="ms-auto flex items-center space-x-4">
-          <ThemeSwitch />
-          <ProfileDropdown />
-        </div>
-      </Header>
-
       <Main>
         {/* ── Encabezado institucional ─────────────────────────────────── */}
         <div className="mb-6">
@@ -99,48 +91,48 @@ export function Dashboard() {
           <div className="space-y-6">
 
             {/* ── Grid 6 KPI Cards ─────────────────────────────────────── */}
-            <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
 
-              {/* Card 1 — Total Ventas */}
+              {/* Card 1 — Total Neto */}
               <Card className="border-l-4 border-l-slate-700 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total de Ventas</CardTitle>
+                  <CardTitle className="text-sm font-medium">Ingresos Netos del Mes</CardTitle>
                   <TrendingUp className="h-4 w-4 text-slate-600" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{pen(data.totalVentasMes)}</div>
                   <p className="text-xs text-muted-foreground">
                     {data.crecimientoIngresos >= 0 ? '+' : ''}
-                    {data.crecimientoIngresos.toFixed(1)}% vs mes anterior ·{' '}
-                    {data.cantidadVentasMes} comprobantes
+                    {data.crecimientoIngresos.toFixed(1)}% vs mes anterior &middot;{' '}
+                    {data.cantidadVentasMes} comprobante{data.cantidadVentasMes !== 1 ? 's' : ''} vigente{data.cantidadVentasMes !== 1 ? 's' : ''}
                   </p>
                 </CardContent>
               </Card>
 
-              {/* Card 2 — Facturación Oficial (Facturas) */}
+              {/* Card 2 — Facturación Neta (ya descontadas NC) */}
               <Card className="border-l-4 border-l-blue-500 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Facturación Oficial</CardTitle>
+                  <CardTitle className="text-sm font-medium">Facturación Neta</CardTitle>
                   <FileText className="h-4 w-4 text-blue-500" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-blue-600">{pen(data.montoFacturas)}</div>
                   <p className="text-xs text-muted-foreground">
-                    {data.cantidadFacturas} factura{data.cantidadFacturas !== 1 ? 's' : ''} emitida{data.cantidadFacturas !== 1 ? 's' : ''} este mes
+                    {data.cantidadFacturas} factura{data.cantidadFacturas !== 1 ? 's' : ''} vigente{data.cantidadFacturas !== 1 ? 's' : ''} · neto NC
                   </p>
                 </CardContent>
               </Card>
 
-              {/* Card 3 — Boletas Emitidas */}
+              {/* Card 3 — Boletas Netas (ya descontadas NC) */}
               <Card className="border-l-4 border-l-emerald-500 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Boletas Emitidas</CardTitle>
+                  <CardTitle className="text-sm font-medium">Boletas Netas</CardTitle>
                   <ScrollText className="h-4 w-4 text-emerald-500" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-emerald-600">{pen(data.montoBoletas)}</div>
                   <p className="text-xs text-muted-foreground">
-                    {data.cantidadBoletas} boleta{data.cantidadBoletas !== 1 ? 's' : ''} de venta este mes
+                    {data.cantidadBoletas} boleta{data.cantidadBoletas !== 1 ? 's' : ''} vigente{data.cantidadBoletas !== 1 ? 's' : ''} · neto NC
                   </p>
                 </CardContent>
               </Card>

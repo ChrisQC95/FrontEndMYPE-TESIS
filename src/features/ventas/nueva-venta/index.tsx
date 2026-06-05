@@ -326,12 +326,12 @@ export default function NuevaVenta() {
 
       {/* ENCABEZADO */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Nueva Venta</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Nueva Venta</h1>
         <p className="text-slate-500 mt-1 text-sm">Registra un comprobante: factura, boleta o nota de venta.</p>
       </div>
 
-      {/* LAYOUT ASIMÉTRICO 12 COLUMNAS */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* LAYOUT: 1 col en móvil, asimétrico 12 cols en desktop */}
+      <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6 items-start">
 
         {/* ── COLUMNA IZQUIERDA (col-span-8) ─────────────────────────────── */}
         <div className="lg:col-span-8 space-y-5">
@@ -474,7 +474,7 @@ export default function NuevaVenta() {
                   <Label className="text-xs font-semibold text-slate-600">Producto / Servicio</Label>
                   <Popover open={openProductSearch} onOpenChange={setOpenProductSearch}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" role="combobox" aria-expanded={openProductSearch} className="w-full justify-between bg-white h-9 border-slate-300">
+                      <Button variant="outline" role="combobox" aria-expanded={openProductSearch} className="w-full justify-between bg-white h-10 border-slate-300">
                         <span className="truncate">
                           {selectedProductId
                             ? productos.find((p) => p.id === selectedProductId)?.nombre
@@ -539,7 +539,8 @@ export default function NuevaVenta() {
                 </Button>
               </div>
 
-              {/* Tabla de detalles */}
+              {/* Tabla de detalles con scroll horizontal en móvil */}
+              <div className="overflow-x-auto pb-1">
               <Table>
                 <TableHeader className="bg-slate-800 hover:bg-slate-800">
                   <TableRow className="border-0">
@@ -585,6 +586,7 @@ export default function NuevaVenta() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
 
@@ -652,9 +654,10 @@ export default function NuevaVenta() {
 
         </div>{/* fin columna izquierda */}
 
-        {/* ── COLUMNA DERECHA STICKY: RESUMEN CARRITO CORPORATIVO ─────────── */}
+        {/* ── COLUMNA DERECHA STICKY: RESUMEN (en móvil va después del formulario) ─ */}
         <div className="lg:col-span-4">
-          <div className="sticky top-6 space-y-4">
+          {/* sticky solo desde lg para arriba */}
+          <div className="lg:sticky lg:top-6 space-y-4">
 
             <Card className="shadow-sm border-slate-200 overflow-hidden">
               <CardHeader className="bg-slate-800 pb-3 pt-4 px-5">
